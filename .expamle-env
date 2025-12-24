@@ -1,0 +1,20 @@
+APP_PORT=8080
+APP_ENV=development
+
+
+#MongoDB(local)
+MONGO_URI=mongodb://khô gà đè tem
+MONGO_DB=chillhub
+MONGO_PORT=27018
+
+#MinIO(local)
+MINIO_ENDPOINT=ộ ii:9001
+MINIO_PORT=9001
+MINIO_CONSOLE_PORT=9002
+MINIO_ACCESS_KEY=hdpe
+MINIO_SECRET_KEY=là ngon luôn
+MINIO_BUCKET_RAW=raw
+MINIO_BUCKET_HLS=hls
+MINIO_USE_SSL=false
+MINIO_BASE_URL=http://con chó cao bằng ộ ii:9001
+
