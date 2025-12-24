@@ -1,36 +1,22 @@
-<div align="left" style="position: relative;">
-<table>
-  <tr>
-    <td align="left" width="65%">
-      <h1>CHILLHUB</h1>
-
-      <p>
-        <em><code>❯ REPLACE-ME</code></em>
-      </p>
-
-      <p>
-        <img src="https://img.shields.io/github/license/jukistricker/chillhub?style=default&logo=opensourceinitiative&logoColor=white&color=0080ff" alt="license">
-        <img src="https://img.shields.io/github/last-commit/jukistricker/chillhub?style=default&logo=git&logoColor=white&color=0080ff" alt="last-commit">
-        <img src="https://img.shields.io/github/languages/top/jukistricker/chillhub?style=default&color=0080ff" alt="repo-top-language">
-        <img src="https://img.shields.io/github/languages/count/jukistricker/chillhub?style=default&color=0080ff" alt="repo-language-count">
-      </p>
-    </td>
-
-    <td align="right" width="35%">
-      <img
-        src="https://res.cloudinary.com/db0sdo295/image/upload/v1766575004/Gemini_Generated_Image_h5bl03h5bl03h5bl_jhfaf2.png"
-        width="100%"
-      >
-    </td>
-  </tr>
-</table>
-<p align="left"><!-- default option, no dependency badges. -->
+<p align="center">
+    <img src="https://res.cloudinary.com/db0sdo295/image/upload/v1766575004/Gemini_Generated_Image_h5bl03h5bl03h5bl_jhfaf2.png" align="center" width="30%">
 </p>
-<p align="left">
+<p align="center"><h1 align="center">CHILLHUB</h1></p>
+<p align="center">
+	<em><code>❯ REPLACE-ME</code></em>
+</p>
+<p align="center">
+	<img src="https://img.shields.io/github/license/jukistricker/chillhub?style=default&logo=opensourceinitiative&logoColor=white&color=0080ff" alt="license">
+	<img src="https://img.shields.io/github/last-commit/jukistricker/chillhub?style=default&logo=git&logoColor=white&color=0080ff" alt="last-commit">
+	<img src="https://img.shields.io/github/languages/top/jukistricker/chillhub?style=default&color=0080ff" alt="repo-top-language">
+	<img src="https://img.shields.io/github/languages/count/jukistricker/chillhub?style=default&color=0080ff" alt="repo-language-count">
+</p>
+<p align="center"><!-- default option, no dependency badges. -->
+</p>
+<p align="center">
 	<!-- default option, no dependency badges. -->
 </p>
-</div>
-<br clear="right">
+<br>
 
 ##  Table of Contents
 
@@ -66,6 +52,7 @@
 
 ```sh
 └── chillhub/
+    ├── README.md
     ├── cmd
     │   ├── main
     │   │   └── main.go
