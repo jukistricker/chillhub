@@ -55,3 +55,9 @@ tmp/
 .env.*.local
 .env.*
 
+
+# Binaries
+main
+main.exe
+chillhub_app
+chillhub_app.exe

@@ -26,9 +26,13 @@ type Config struct {
 
 
 func Load() Config {
-	_ = godotenv.Load()
+	err := godotenv.Load("../../.env") // Adjust path based on where you run the binary
+    if err != nil {
+        log.Fatal("Error loading .env file")
+    }
 
 	useSSL := os.Getenv("MINIO_USE_SSL") == "true"
+	
 
 	cfg := Config{
 		Port:           os.Getenv("APP_PORT"),
@@ -42,6 +46,7 @@ func Load() Config {
 		RawBucket:     os.Getenv("MINIO_BUCKET_RAW"),
 		HLSBucket:     os.Getenv("MINIO_BUCKET_HLS"),
 	}
+	log.Printf("APP_PORT: %s", cfg.Port)
 
 	if cfg.Port == "" {
 		log.Fatal("APP_PORT is required")
