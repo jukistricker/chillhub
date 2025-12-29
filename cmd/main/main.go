@@ -19,6 +19,7 @@ func main() {
 	cfg := config.Load()
 	log.Println("Cấu hình đã được tải thành công...")
 
+
 	// 2. Kết nối MongoDB
 	db, err := mongoshared.Connect(cfg.MongoURI, cfg.MongoDB)
 	if err != nil {
