@@ -6,8 +6,10 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	appErr "chillhub/internal/shared/error"
@@ -225,4 +227,38 @@ func (u *Util) UploadFolder(ctx context.Context, bucket, prefix, folderPath stri
 func (u *Util) FGetObject(ctx context.Context, bucket, object, filePath string) error {
     // Gọi trực tiếp từ minio-go client
     return u.storage.cli.FGetObject(ctx, bucket, object, filePath, minio.GetObjectOptions{})
+}
+
+
+// Khởi tạo một phiên upload mới, trả về UploadID
+func (u *Util) NewMultipartUpload(ctx context.Context, bucket, object string) (string, error) {
+	core := minio.Core{Client: u.storage.cli}
+	// Khởi tạo phiên upload với MinIO
+	uploadID, err := core.NewMultipartUpload(ctx, bucket, object, minio.PutObjectOptions{})
+	if err != nil {
+		return "", err
+	}
+	return uploadID, nil
+}
+
+// Tạo URL cho từng mảnh (Part) của file
+func (u *Util) PresignUploadPart(ctx context.Context, bucket, object, uploadID string, partNumber int, expiry time.Duration) (string, error) {
+	// Query params bắt buộc để MinIO nhận diện mảnh của file
+	values := make(url.Values)
+	values.Set("uploadId", uploadID)
+	values.Set("partNumber", strconv.Itoa(partNumber))
+
+	// Tạo Presigned URL cho phương thức PUT
+	uPart, err := u.storage.cli.Presign(ctx, "PUT", bucket, object, expiry, values)
+	if err != nil {
+		return "", err
+	}
+	return uPart.String(), nil
+}
+
+// Hoàn tất việc ghép các mảnh lại thành file hoàn chỉnh
+func (u *Util) CompleteMultipartUpload(ctx context.Context, bucket, object, uploadID string, parts []minio.CompletePart) error {
+	core := minio.Core{Client: u.storage.cli}
+	_, err := core.CompleteMultipartUpload(ctx, bucket, object, uploadID, parts, minio.PutObjectOptions{})
+	return err
 }
