@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+    appErr "chillhub/internal/shared/error"
 )
 
 type MediaHandler struct {
@@ -28,13 +29,15 @@ func (h *MediaHandler) InitUpload(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, response.Envelope{
-		Success: true,
-		Data: gin.H{
-			"id":         media.ID.Hex(),
-			"upload_url": url,
-		},
-	})
+    response.Send(
+        c,
+        http.StatusCreated,
+        "media.upload_initialized",
+        gin.H{
+            "id":         media.ID.Hex(),
+            "upload_url": url,
+        },
+    )
 }
 
 func (h *MediaHandler) CompleteUpload(c *gin.Context) {
@@ -45,10 +48,13 @@ func (h *MediaHandler) CompleteUpload(c *gin.Context) {
         return
     }
 
-    c.JSON(http.StatusOK, response.Envelope{
-        Success: true,
-        Data:    "media.queued_transcoding",
-    })
+    response.Send(
+        c,
+        http.StatusOK,
+        "media.queued_transcoding",
+        nil,
+    )
+
 }
 
 func (h *MediaHandler) GetStatus(c *gin.Context) {
@@ -57,10 +63,15 @@ func (h *MediaHandler) GetStatus(c *gin.Context) {
         c.Error(err)
         return
     }
-    c.JSON(200, gin.H{
-        "id":     media.ID.Hex(),
-        "status": media.Status, // pending, processing, ready, failed
-    })
+    response.Send(
+        c,
+        http.StatusOK,
+        "media.status_retrieved",
+        gin.H{
+            "id":     media.ID.Hex(),
+            "status": media.Status, // pending, processing, ready, failed
+        },
+    )
 }
 
 func (h *MediaHandler) Stream(c *gin.Context) {
@@ -95,3 +106,26 @@ func (h *MediaHandler) Stream(c *gin.Context) {
     c.DataFromReader(http.StatusOK, contentLength, contentType, reader, extraHeaders)
 }
 
+func (h *MediaHandler) InitLargeUpload(c *gin.Context) {
+    // 1. Khai báo struct để nhận input từ Client
+    var input struct {
+        FileSize int64 `json:"size" binding:"required,gt=0"`
+    }
+
+    // 2. Bind JSON và kiểm tra lỗi validate
+    if err := c.ShouldBindJSON(&input); err != nil {
+        c.Error(appErr.ErrBadRequest.WithErr(err, "media.invalid_input"))
+        return
+    }
+
+    // 3. Gọi Service để lấy danh sách URL
+    // fileSize được truyền vào để tính toán chia Part
+    res, err := h.service.InitLargeUpload(c.Request.Context(), input.FileSize)
+    if err != nil {
+        c.Error(err) // Trình xử lý lỗi tự động lo phần còn lại
+        return
+    }
+
+    // 4. Trả về thành công bằng hàm Send tinh gọn
+    response.Send(c, http.StatusCreated, "media.init_success", res)
+}

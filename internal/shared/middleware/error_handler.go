@@ -21,39 +21,35 @@ func ErrorHandler(debug bool) gin.HandlerFunc {
         err := c.Errors.Last().Err
         var appErr *error.AppError
 
-        // TRƯỜNG HỢP 1: Lỗi nghiệp vụ (Đã được bọc vào AppError)
-        if errors.As(err, &appErr) {
-            resp := response.ErrorBody{
-                Status:  appErr.Status,
-                Message: appErr.Message,
-            }
-            if debug && appErr.Err != nil {
-                resp.Err = appErr.Err.Error()
-            }
-            c.AbortWithStatusJSON(appErr.Status, response.Envelope{
-                Success: false,
-                Error:   &resp,
-            })
-            return
-        }
-
-        // TRƯỜNG HỢP 2: Lỗi hệ thống bất ngờ (VD: Null pointer, DB connection lost)
-        // Chúng ta không muốn lộ chi tiết cho Client ở Prod
         status := http.StatusInternalServerError
         message := "internal.server_error"
-        
-        var detail string
-        if debug {
-            detail = err.Error()
+        var trace string
+
+        if errors.As(err, &appErr) {
+            // Lỗi nghiệp vụ
+            status = appErr.Status
+            message = appErr.Message
+            if debug && appErr.Err != nil {
+                trace = appErr.Err.Error()
+            }
+        } else {
+            // Lỗi hệ thống không xác định
+            if debug {
+                trace = err.Error()
+            }
+        }
+
+        // Tạo ErrorBody gọn nhẹ
+        var errBody *response.ErrorBody
+        if trace != "" {
+            errBody = &response.ErrorBody{Trace: trace}
         }
 
         c.AbortWithStatusJSON(status, response.Envelope{
             Success: false,
-            Error: &response.ErrorBody{
-                Status:  status,
-                Message: message,
-                Err:     detail, 
-            },
+            Status:  status,
+            Message: message,
+            Error:   errBody,
         })
     }
 }
