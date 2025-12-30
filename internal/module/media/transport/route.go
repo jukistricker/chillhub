@@ -6,10 +6,17 @@ import (
 )
 
 func RegisterRoutes(r *gin.RouterGroup, h *handler.MediaHandler) {
-	r.POST("/media/upload", h.InitUpload)
-	r.GET("/media/:id/status", h.GetStatus)
-	r.GET("/media/:id/stream", h.Stream)
-	r.POST("/media/:id/complete", h.CompleteUpload)
+    // Tạo group media
+    media := r.Group("/media")
+    {
+        // Các route liên quan đến upload
+        media.POST("/upload", h.InitUpload)
+        media.POST("/large-upload", h.InitLargeUpload)
+        media.POST("/:id/complete", h.CompleteUpload)
 
+        // Các route liên quan đến truy vấn/stream
+        media.GET("/:id/status", h.GetStatus)
+        media.GET("/:id/stream", h.Stream)
+    }
 }
 
