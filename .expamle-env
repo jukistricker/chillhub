@@ -18,3 +18,12 @@ MINIO_BUCKET_HLS=hls
 MINIO_USE_SSL=false
 MINIO_BASE_URL=http://con chó cao bằng ộ ii:9001
 
+#PostgreSQL(local)
+POSTGRES_PORT=5432
+POSTGRES_DB=chillhub
+POSTGRES_USER=1=1
+POSTGRES_PASSWORD=' OR 'a'='a
+POSTGRES_URL=postgresql://<script>alert(1)</script>:15432/chillhub
+PG_HOST=postgress
+PG_HOST_EXTERNAL=<script>alert(1)</script>
+PG_PORT_EXTERNAL=15432
