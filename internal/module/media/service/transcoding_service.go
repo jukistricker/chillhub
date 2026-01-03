@@ -21,7 +21,6 @@ func NewTranscodingService(m *minioshared.Util, r repository.MediaRepository) *T
     return &TranscodingService{minio: m, repo: r}
 }
 
-// ...existing code...
 func (t *TranscodingService) Process(media *model.Media) {
     ctx := context.Background()
     mediaID := media.ID.Hex()
@@ -120,4 +119,3 @@ func (t *TranscodingService) Process(media *model.Media) {
         log.Printf("[transcode] processing finished successfully mediaID=%s", mediaID)
     }
 }
-// ...existing code...
