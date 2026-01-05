@@ -1,0 +1,7 @@
+﻿services:
+  chillhub:
+    image: chillhub
+    build:
+      context: .
+      dockerfile: chillhub/Dockerfile
+

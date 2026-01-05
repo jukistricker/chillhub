@@ -1,0 +1,6 @@
+@chillhub_HostAddress = http://localhost:5171
+
+GET {{chillhub_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

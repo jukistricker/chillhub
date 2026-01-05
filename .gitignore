@@ -1,0 +1,15 @@
+bin/
+obj/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+
+# JetBrains Rider / Rider
+.idea/
+*.sln.iml
+*.idea.chillhub/
+
+#env
+**/appsettings.json
+**/appsettings.Development.json
+**/Properties/launchSettings.json
