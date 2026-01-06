@@ -10,20 +10,65 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 type TranscodingService struct {
     minio *minioshared.Util
     repo  repository.MediaRepository
+    sem    chan struct{}
 }
 
 func NewTranscodingService(m *minioshared.Util, r repository.MediaRepository) *TranscodingService {
-    return &TranscodingService{minio: m, repo: r}
+    return &TranscodingService{
+        minio: m, 
+        repo: r,
+        sem:   make(chan struct{}, 2), // Khởi tạo channel với buffer
+    }
 }
+
+// Danh sách các encoder ưu tiên từ cao xuống thấp
+var priorityEncoders = []struct {
+	name string
+	flag string // Tên encoder trong ffmpeg
+}{
+	{"NVIDIA NVENC", "h264_nvenc"},
+	{"Intel QuickSync", "h264_qsv"},
+	{"AMD AMF", "h264_amf"},
+}
+
+func (t *TranscodingService) getBestVideoCodec() string {
+	// Lấy danh sách encoders mà FFmpeg hiện tại hỗ trợ
+	out, err := exec.Command("ffmpeg", "-encoders").Output()
+	if err != nil {
+		log.Printf("[transcode] warn: could not list encoders, fallback to libx264")
+		return "libx264"
+	}
+
+	supported := string(out)
+	for _, enc := range priorityEncoders {
+		if strings.Contains(supported, enc.flag) {
+			// Thử chạy một lệnh test siêu ngắn để chắc chắn driver hoạt động
+			testCmd := exec.Command("ffmpeg", "-f", "lavfi", "-i", "color=c=black:s=64x64", "-frames:v", "1", "-vcodec", enc.flag, "-f", "null", "-")
+			if err := testCmd.Run(); err == nil {
+				log.Printf("[transcode] hardware accelerator detected: %s", enc.name)
+				return enc.flag
+			}
+		}
+	}
+
+	log.Printf("[transcode] no hardware acceleration found, using CPU (libx264)")
+	return "libx264"
+}
+
 
 func (t *TranscodingService) Process(media *model.Media) {
     ctx := context.Background()
     mediaID := media.ID.Hex()
+
+    // 0. Semaphore giới hạn số lượng transcode đồng thời (ví dụ: 2)
+    t.sem <- struct{}{}
+    defer func() { <-t.sem }()
 
     log.Printf("[transcode] start processing mediaID=%s raw=%s/%s", mediaID, media.Raw.Bucket, media.Raw.Object)
 
@@ -73,17 +118,49 @@ func (t *TranscodingService) Process(media *model.Media) {
 
     // 4. FFmpeg: Input -> HLS
     outputPath := filepath.Join(workDir, "index.m3u8")
-    cmd := exec.Command("ffmpeg", "-i", inputPath,
-        "-codec:v", "libx264", "-codec:a", "aac",
+    codec := t.getBestVideoCodec()
+
+    // Khởi tạo tham số cơ bản
+    args := []string{
+        "-err_detect", "ignore_err", // Bỏ qua các lỗi nhỏ trong stream
+        "-i", inputPath,
+        "-fflags", "+genpts+discardcorrupt", // Tạo lại timestamp và bỏ qua khung hình hỏng
+    }
+
+    // Cấu hình đặc thù cho từng loại Codec
+    switch codec {
+    case "h264_nvenc":
+        args = append(args, "-c:v", "h264_nvenc", "-preset", "p4", "-tune", "hq")
+    case "h264_qsv":
+        args = append(args, "-c:v", "h264_qsv", "-preset", "fast")
+    case "h264_amf":
+        args = append(args, "-c:v", "h264_amf", "-quality", "speed")
+    default: // libx264 (CPU)
+        args = append(args, "-c:v", "libx264", "-preset", "ultrafast", "-threads", "2")
+    }
+
+    // Các tham số HLS và Audio chung
+    args = append(args, 
+        "-c:a", "aac", 
+        "-ac", "2",           // Ép về 2 kênh (Stereo) để sửa lỗi "9 channels"
+        "-b:a", "128k",
+        "-ar", "44100",       // Chuẩn hóa Sample Rate
+        "-af", "aresample=async=1", // Đồng bộ lại audio nếu có gói tin bị mất
         "-hls_time", "6",
         "-hls_playlist_type", "vod",
-        // File phân đoạn cũng dùng mediaID làm tiền tố cho chắc chắn
         "-hls_segment_filename", filepath.Join(workDir, mediaID+"_%03d.ts"),
         outputPath,
     )
+
+    
+
+    cmd := exec.Command("nice", append([]string{"-n", "19", "ffmpeg"}, args...)...)
+    
+    log.Printf("[transcode] executing: %v", cmd.Args)
+    
+    out, err := cmd.CombinedOutput()
     log.Printf("[transcode] running ffmpeg for mediaID=%s args=%v", mediaID, cmd.Args)
 
-    out, err := cmd.CombinedOutput()
     if err != nil {
         log.Printf("[transcode] ffmpeg failed for mediaID=%s: %v; output: %s", mediaID, err, string(out))
         _ = t.repo.UpdateStatus(ctx, mediaID, model.StatusFailed)
