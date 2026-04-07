@@ -9,7 +9,19 @@ riderModule.iml
 *.sln.iml
 *.idea.chillhub/
 
+.vs/
+[Bb]in/
+[Obj]/
+*.user
+*.suo
+
 #env
+**/.env
+**/.env.*
+!**/.env.example
+
 **/appsettings.json
 **/appsettings.Development.json
-**/Properties/launchSettings.json
+**/appsettings.*.json
+
+**/launchSettings.json
