@@ -1,0 +1,81 @@
+﻿services:
+  # Service phụ trợ để tạo cert
+  cert-gen:
+    image: alpine:latest
+    container_name: chillhub-cert-gen
+    volumes:
+      - .:/script
+      - certs-data:/certs
+    entrypoint: >
+      /bin/sh -c "
+      apk add --no-cache openssl bash && 
+      chmod +x /script/entrypoint.sh && 
+      /bin/bash /script/entrypoint.sh
+      "
+   
+  postgres:
+    image: postgres:17
+    container_name: chillhub-postgres
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - chillhub-net
+
+  redis:
+    image: redis:7
+    container_name: chillhub-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - chillhub-net
+
+  api:
+    build:
+      context: .
+      dockerfile: chillhub/Dockerfile
+    container_name: chillhub-api
+    restart: always
+    depends_on:
+      cert-gen:
+        condition: service_completed_successfully # Đợi tạo cert xong mới chạy API
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      ConnectionStrings__DefaultConnection: Host=${DB_HOST};Port=${DB_PORT};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASS}
+      Redis__ConnectionString: ${REDIS_HOST}:${REDIS_PORT}
+      ASPNETCORE_URLS: "https://+;http://+"
+      ASPNETCORE_Kestrel__Certificates__Default__Path: /https/aspnetapp.pfx
+      ASPNETCORE_Kestrel__Certificates__Default__Password: "password"
+    x-develop:
+      watch:
+        - action: rebuild
+          path: .
+          target: /src
+          ignore:
+            - bin/
+            - obj/
+    ports:
+      - "5217:5217" # Map cổng HTTP
+      - "7226:7226" # Map cổng HTTPS
+    volumes:
+      - certs-data:/https:ro # Mount cert vào API (chế độ chỉ đọc)
+    networks:
+      - chillhub-net
+
+networks:
+  chillhub-net:
+
+volumes:
+  certs-data: # Volume lưu trữ cert dùng chung

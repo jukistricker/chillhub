@@ -35,9 +35,12 @@ builder.Services.AddDbContext<AppDbContext>(opt=>{
 });
 
 // Redis
-builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
-    ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("Redis")));
-
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp => {
+    var connStr = builder.Configuration.GetConnectionString("Redis") ?? builder.Configuration["Redis:ConnectionString"];
+    var options = ConfigurationOptions.Parse(connStr);
+    options.AbortOnConnectFail = false; 
+    return ConnectionMultiplexer.Connect(options);
+});
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
     options.InvalidModelStateResponseFactory = context =>

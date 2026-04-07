@@ -18,7 +18,7 @@ riderModule.iml
 #env
 **/.env
 **/.env.*
-!**/.env.example
+
 
 **/appsettings.json
 **/appsettings.Development.json
