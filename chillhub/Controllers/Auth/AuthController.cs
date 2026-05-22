@@ -26,6 +26,13 @@ public class AuthController : ControllerBase
         return await _authService.SignUpAsync(dto);
     }
 
+    [HttpGet("test")]
+    [AllowAnonymous]
+    public async Task<IResult> test()
+    {
+        return ResponseDto.Create(ResponseCatalog.Success, "auth.test_success");
+    }
+
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<IResult> Login([FromBody] SignInDto dto)

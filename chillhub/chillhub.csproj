@@ -8,7 +8,14 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.11"/>
+      <Compile Remove="Filters\**" />
+      <Content Remove="Filters\**" />
+      <EmbeddedResource Remove="Filters\**" />
+      <None Remove="Filters\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.11" />
         <PackageReference Include="BCrypt.Net-Next" Version="4.0.2" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.10">
             <PrivateAssets>all</PrivateAssets>
@@ -22,10 +29,6 @@
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
         <PackageReference Include="System.Linq.Dynamic.Core" Version="1.7.1" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <Folder Include="Filters\" />
     </ItemGroup>
 
     <ItemGroup>

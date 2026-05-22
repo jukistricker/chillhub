@@ -123,7 +123,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("MultiPlatformPolicy", policy =>
     {
-        policy.WithOrigins(allowedOrigins ?? new[] { "http://localhost:3000" }) // Fallback nếu quên cấu hình
+        policy.WithOrigins(allowedOrigins ?? new[] { "http://localhost:2999" }) // Fallback nếu quên cấu hình
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials(); // Quan trọng: Cho phép gửi Cookie/Auth Header

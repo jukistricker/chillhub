@@ -48,7 +48,6 @@ public sealed class TokenUtil
         
         string jti = Guid.NewGuid().ToString();
 
-        // Map dữ liệu vào Dictionary Claims
         var claims = new Dictionary<string, object>
         {
             [JwtRegisteredClaimNames.Sub] = userId.ToString(),      // UserId
@@ -82,7 +81,6 @@ public sealed class TokenUtil
         var result = await _handler.ValidateTokenAsync(token, _validationParameters);
         if (!result.IsValid)
         {
-            // Debug dòng này để thấy lỗi thật (ví dụ: Issuer invalid, hay Signature invalid)
             Console.WriteLine($"Token Invalid: {result.Exception?.Message}");
             return null;
         }

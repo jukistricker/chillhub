@@ -11,7 +11,7 @@ public class RolePermissionMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly IDatabase _redis;
-    private readonly TokenUtil _tokenUtil; // Đã là Singleton/Scoped tùy DI của bạn
+    private readonly TokenUtil _tokenUtil;
 
     public RolePermissionMiddleware(RequestDelegate next, IConnectionMultiplexer redis, TokenUtil tokenUtil)
     {

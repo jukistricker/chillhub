@@ -23,7 +23,7 @@ public class RbacRepository : IRbacRepository
     // public async Task<PermissionGroupDetailDto?> GetGroupPermissionDetailAsync(Guid groupPermissionId)
     // {
     //     // Sử dụng Query Projection để tránh lỗi Ambiguous và tối ưu RAM
-    //     IQueryable<PermissionGroupDetailDto> query = _db.PermissionGroups
+    // IQueryable<PermissionGroupDetailDto> query = _db.PermissionGroups
     //         .AsNoTracking()
     //         .Where(g => g.Id == groupPermissionId)
     //         .Select(g => new PermissionGroupDetailDto(
