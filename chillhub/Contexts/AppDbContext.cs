@@ -38,6 +38,7 @@ public class AppDbContext : DbContext
                 property.SetColumnName(StringUtil.ToSnakeCase(property.Name));
             }
         }
+        DataSeeder.Seed(modelBuilder);
     }
 
 }
