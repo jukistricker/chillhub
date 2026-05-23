@@ -31,10 +31,9 @@ public class PermissionGroupSaveRequest
     }
 }
 
-public class PermissionGroupFilterRequest : BaseFilterRequest
+public class PermissionGroupFilterRequest : CursorRequest
 {
-    // Bạn có thể thêm các filter cứng ở đây nếu cần
-    // ví dụ: public bool? IsActive { get; set; }
+    // public bool? IsActive { get; set; }
     public Guid? Id { get; set; }
     public string? Code { get; set; }
 }
@@ -57,7 +56,7 @@ public class RoleSaveRequest
     }
 }
 
-public class RoleFilterRequest : BaseFilterRequest
+public class RoleFilterRequest : CursorRequest
 {
     public Guid? Id { get; set; }
 }
@@ -78,7 +77,7 @@ public class PermissionSaveRequest
     
 }
 
-public class PermissionFilterRequest:BaseFilterRequest
+public class PermissionFilterRequest:CursorRequest
 {
     public Guid? Id { get; set; }
     public string? Code { get; set; }

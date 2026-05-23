@@ -1,23 +1,20 @@
 using chillhub.Contexts;
 using chillhub.Entities.Auth;
-using chillhub.Mapper;
 using chillhub.Models.Dtos.Requests;
-using chillhub.Models.Dtos.Responses;
+using chillhub.Models.Dtos.Responses.Search;
 using chillhub.Repositories.Interfaces;
 using chillhub.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace chillhub.Repositories;
 
-public class RbacRepository : IRbacRepository
+public class RbacRepository : Repository<Permission>, IRbacRepository
 {
     private readonly AppDbContext _db;
-    private readonly ILogger<RbacRepository> _logger;
 
-    public RbacRepository(AppDbContext context, ILogger<RbacRepository> logger)
+    public RbacRepository(AppDbContext dbContext) : base(dbContext)
     {
-        _db = context;
-        _logger = logger;
+        _db = dbContext;
     }
 
     // public async Task<PermissionGroupDetailDto?> GetGroupPermissionDetailAsync(Guid groupPermissionId)
@@ -65,36 +62,7 @@ public class RbacRepository : IRbacRepository
         return entity;
     }
 
-    public async Task<(List<PermissionGroupResponse> Items, string? NextCursor)> GetPermissionGroupsAsync(
-        PermissionGroupFilterRequest req)
-    {
-        var query = _db.PermissionGroups.AsNoTracking();
-
-        if (req.Id.HasValue) query = query.Where(u => u.Id == req.Id.Value);
-        if (!string.IsNullOrWhiteSpace(req.Code)) query = query.Where(u => u.Code == req.Code);
-        if (!string.IsNullOrWhiteSpace(req.Search))
-            query = query.Where(u => EF.Functions.ILike(u.Name, $"%{req.Search.Trim()}%"));
-
-        var items = await query
-            .ApplyCursor<PermissionGroup, Guid>(req.Cursor, req.SortField, req.IsDescending)
-            .ApplyDeterministicSort(req.FullSortParam)
-            .Take(req.Limit + 1)
-            .ApplySelect<PermissionGroup, PermissionGroupResponse>(
-                StringUtil.GetSelectFields<PermissionGroupResponse>(req.Select))
-            .ToListAsync();
-
-        string? nextCursor = null;
-        if (items.Count > req.Limit)
-        {
-            var lastValidItem = items[req.Limit - 1];
-            nextCursor = lastValidItem.GetType().GetProperty(req.SortField)?.GetValue(lastValidItem)?.ToString()
-                         ?? lastValidItem.Id.ToString();
-
-            items.RemoveAt(req.Limit);
-        }
-
-        return (items, nextCursor);
-    }
+   
 
 
     // public async Task<RoleDetailDto?> GetRoleDetailAsync(Guid roleId)
@@ -142,9 +110,8 @@ public class RbacRepository : IRbacRepository
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Internal Server Error. Details: {Message}",
+            Console.WriteLine( "Internal Server Error. Details: ",
                 ex.InnerException?.Message ?? ex.Message);
-            // Dọn dẹp tracker nếu lưu thất bại để tránh ảnh hưởng các lệnh Save sau này
             _db.ChangeTracker.Clear();
             return false;
         }
@@ -204,9 +171,8 @@ public class RbacRepository : IRbacRepository
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error when updating permission batch");
             await transaction.RollbackAsync();
-            _db.ChangeTracker.Clear(); // Dọn dẹp ChangeTracker để tránh ảnh hưởng request sau
+            _db.ChangeTracker.Clear(); 
             return false;
         }
     }
@@ -235,13 +201,17 @@ public class RbacRepository : IRbacRepository
             .Select(r => r.Id).ToListAsync();
     }
 
-    public async Task<(List<PermissionResponse> Items, string? NextCursor)> GetPermissionsAsync(
-        PermissionFilterRequest request)
+    public async Task<CursorResponse<Permission>> GetPermissionsAsync(PermissionFilterRequest request)
     {
-        // 1. Khởi tạo Query từ Entity 
-        var query = _db.Permissions.AsNoTracking();
+        IQueryable<Permission> query = _db.Permissions.AsNoTracking()
+            .Include(x => x.PermissionGroup)
+            .Include(x => x.RolePermissions)
+                .ThenInclude(rp => rp.Role);
 
-        // 2. Filter trên Entity (Tối ưu index)
+        if (request.Id.HasValue)
+        {
+            query = query.Where(x => x.Id == request.Id);
+        }
         if (request.PermissionGroupId.HasValue)
             query = query.Where(x => x.PermissionGroupId == request.PermissionGroupId);
 
@@ -251,33 +221,7 @@ public class RbacRepository : IRbacRepository
         if (!string.IsNullOrEmpty(request.Search))
             query = query.Where(x => x.Name.Contains(request.Search) || x.Code.Contains(request.Search));
 
-        // 3. DÙNG MAPPER TẠI ĐÂY
-        // Chuyển từ IQueryable<Permission> sang IQueryable<PermissionResponse>
-        var dtoQuery = query.Select(RbacMapper.ToPermissionResponse); //Ngay tại đây
-
-        // 4. Áp dụng Sorting & Cursor 
-        // Lưu ý: Lúc này SortField phải khớp với thuộc tính trong PermissionResponse
-        dtoQuery = dtoQuery.ApplyCursor<PermissionResponse, Guid>(request.Cursor, request.SortField,
-            request.IsDescending);
-        dtoQuery = dtoQuery.ApplyDeterministicSort(request.FullSortParam);
-
-        // 5. Thực thi lấy dữ liệu (Limit + 1 để check trang sau)
-        var items = await dtoQuery
-            .Take(request.Limit + 1)
-            .ToListAsync();
-
-        // 6. Xử lý NextCursor
-        string? nextCursor = null;
-        if (items.Count > request.Limit)
-        {
-            var lastItem = items[request.Limit - 1];
-            items.RemoveAt(request.Limit);
-
-            var cursorValue = lastItem.GetType().GetProperty(request.SortField)?.GetValue(lastItem);
-            nextCursor = cursorValue?.ToString();
-        }
-
-        return (items, nextCursor);
+        return await GetByCursorAsync(query, request, u => u.Id);
     }
 
     public async Task<List<UserRole>> GetUserRolesAsync(Guid userId)
@@ -334,33 +278,7 @@ public class RbacRepository : IRbacRepository
         return entity;
     }
 
-    public async Task<(List<Role> Items, string? NextCursor)> GetRolesAsync(RoleFilterRequest requests)
-    {
-        var query = _db.Roles.AsNoTracking();
-
-        if (requests.Id.HasValue) query = query.Where(u => u.Id == requests.Id.Value);
-        if (!string.IsNullOrWhiteSpace(requests.Search))
-            query = query.Where(u => EF.Functions.ILike(u.Name, $"%{requests.Search.Trim()}%"));
-
-        var items = await query
-            .ApplyCursor<Role, Guid>(requests.Cursor, requests.SortField, requests.IsDescending)
-            .ApplyDeterministicSort(requests.FullSortParam)
-            .Take(requests.Limit + 1)
-            .ApplySelect<Role, Role>(StringUtil.GetSelectFields<Role>(requests.Select))
-            .ToListAsync();
-
-        string? nextCursor = null;
-        if (items.Count > requests.Limit)
-        {
-            var lastValidItem = items[requests.Limit - 1];
-            nextCursor = lastValidItem.GetType().GetProperty(requests.SortField)?.GetValue(lastValidItem)?.ToString()
-                         ?? lastValidItem.Id.ToString();
-
-            items.RemoveAt(requests.Limit);
-        }
-
-        return (items, nextCursor);
-    }
+    
 
     public async Task<List<PermissionGroup>> GetAllGroupsAsync()
     {

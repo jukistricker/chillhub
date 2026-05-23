@@ -1,34 +1,25 @@
 ﻿using StackExchange.Redis;
-using System.Collections.Concurrent;
-using System.Globalization;
-using System.Reflection;
 using System.Text.Json;
 
 namespace chillhub.Utils;
 
 public static class RedisUtil
 {
-    // Cache lại các Property để tránh dùng Reflection quá nhiều gây chậm (Performance cực quan trọng cho Session)
-    private static readonly ConcurrentDictionary<Type, PropertyInfo[]> PropertyCache = new();
-
-    // Tận dụng DataUtil._options đã cấu hình Strict Mode từ trước
     private static readonly JsonSerializerOptions Options = new()
     {
-        PropertyNameCaseInsensitive = false,
+        PropertyNameCaseInsensitive = true, 
         PropertyNamingPolicy = null
     };
 
-    /// <summary>
-    /// Lưu nhiều field vào Hash bằng cách dùng trực tiếp RedisValue để tránh boxing chuỗi
-    /// </summary>
     public static async Task SetHashAsync(
         IDatabase db,
         string key,
         IEnumerable<KeyValuePair<string, object>> values,
         TimeSpan? expiry = null)
     {
-        // Tránh dùng Select().ToArray() để giảm allocation nếu có thể
-        var entries = values.Select(kv => new HashEntry(kv.Key, Serialize(kv.Value))).ToArray();
+        var entries = values.Select(kv =>
+            new HashEntry(kv.Key, SerializeToRedisValue(kv.Value))
+        ).ToArray();
 
         await db.HashSetAsync(key, entries);
 
@@ -36,71 +27,30 @@ public static class RedisUtil
             await db.KeyExpireAsync(key, expiry.Value);
     }
 
-    /// <summary>
-    /// Lấy 1 field và parse bằng ReadOnlySpan để đạt hiệu năng tối đa
-    /// </summary>
     public static async Task<T?> GetFieldAsync<T>(IDatabase db, string key, string field)
     {
         var val = await db.HashGetAsync(key, field);
-        if (val.IsNull) return default;
+        if (val.IsNullOrEmpty) return default;
 
-        return Deserialize<T>(val);
+        return DeserializeRedisValue<T>(val);
     }
 
-    /// <summary>
-    /// Tối ưu Serialize: Giảm thiểu ToString() thủ công, tận dụng Implicit conversion của StackExchange.Redis
-    /// </summary>
-    private static RedisValue Serialize(object? obj)
-    {
-        if (obj == null) return RedisValue.Null;
-
-        return obj switch
-        {
-            string s => s,
-            int i => i,
-            long l => l,
-            bool b => b,
-            double d => d,
-            byte[] bytes => bytes,
-            Guid g => g.ToByteArray(),
-            DateTime dt => dt.ToBinary(),
-            // DateTimeOffset: Lưu dạng chuỗi ISO 8601 ("o") để giữ nguyên múi giờ và độ chính xác
-            DateTimeOffset dto => dto.ToString("o"),
-            _ => JsonSerializer.Serialize(obj, Options)
-        };
-    }
-
-    public static async Task DeleteFieldsAsync(IDatabase db, string key, params string[] fields)
-    {
-        if (fields.Length == 0) return;
-        await db.HashDeleteAsync(key, Array.ConvertAll(fields, f => (RedisValue)f));
-    }
-
-    public static async Task<bool> FieldExistsAsync(IDatabase db, string key, string field)
-        => await db.HashExistsAsync(key, field);
-
-    /// <summary>
-    /// Set toàn bộ Object vào Redis Hash. Tự động map Property Name thành Field.
-    /// </summary>
     public static async Task SetObjectToHashAsync<T>(
         IDatabase db,
         string key,
         T obj,
         TimeSpan? expiry = null) where T : class
     {
+        if (obj == null) return;
 
-        // Lấy danh sách Property từ Cache
-        var properties = PropertyCache.GetOrAdd(typeof(T), t => t.GetProperties());
+        var jsonString = JsonSerializer.Serialize(obj, Options);
+        var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonString, Options);
 
-        var entries = new HashEntry[properties.Length];
+        if (dict == null) return;
 
-        for (int i = 0; i < properties.Length; i++)
-        {
-            var prop = properties[i];
-            var value = prop.GetValue(obj);
-            // Tận dụng hàm Serialize có sẵn của bạn để xử lý String, Int, List, v.v.
-            entries[i] = new HashEntry(prop.Name, Serialize(value));
-        }
+        var entries = dict.Select(kv =>
+            new HashEntry(kv.Key, SerializeToRedisValue(kv.Value))
+        ).ToArray();
 
         await db.HashSetAsync(key, entries);
 
@@ -108,90 +58,77 @@ public static class RedisUtil
             await db.KeyExpireAsync(key, expiry.Value);
     }
 
-    /// <summary>
-    /// Get toàn bộ Object từ Redis Hash
-    /// </summary>
     public static async Task<T?> GetObjectFromHashAsync<T>(IDatabase db, string key) where T : class, new()
     {
         var entries = await db.HashGetAllAsync(key);
         if (entries.Length == 0) return null;
 
-        var obj = new T();
-        var properties = PropertyCache.GetOrAdd(typeof(T), t => t.GetProperties());
-
-        // Tối ưu: Dùng dictionary để lookup nhanh hơn
-        var dict = entries.ToDictionary(e => e.Name.ToString(), e => e.Value);
-
-        foreach (var prop in properties)
+        var dict = new Dictionary<string, string>();
+        foreach (var entry in entries)
         {
-            if (dict.TryGetValue(prop.Name, out var redisValue))
+            if (!entry.Name.IsNullOrEmpty && !entry.Value.IsNullOrEmpty)
             {
-                // GỌI THẲNG hàm hỗ trợ không dùng Reflection Invoke
-                var value = Deserialize(redisValue, prop.PropertyType);
-                prop.SetValue(obj, value);
+                dict[entry.Name.ToString()] = entry.Value.ToString();
             }
         }
 
-        return obj;
+        var jsonString = JsonSerializer.Serialize(dict, Options);
+        return JsonSerializer.Deserialize<T>(jsonString, Options);
     }
 
-    // 1. Hàm Deserialize Non-generic (Core Logic)
-    private static object? Deserialize(RedisValue val, Type type)
+    public static async Task SetObjectAsJsonAsync<T>(IDatabase db, string key, T obj, TimeSpan? expiry = null)
     {
-        if (val.IsNull) return null;
-
-        if (type == typeof(string)) return val.ToString();
-        if (type == typeof(int)) return (int)val;
-        if (type == typeof(long)) return (long)val;
-        if (type == typeof(bool)) return (bool)val;
-        if (type == typeof(double)) return (double)val;
-        if (type == typeof(Guid)) return new Guid((byte[])val!);
-        if (type == typeof(DateTime)) return DateTime.FromBinary((long)val);
-
-        if (type == typeof(DateTimeOffset))
-            return DateTimeOffset.Parse(val.ToString(), null, DateTimeStyles.RoundtripKind);
-
-        // Xử lý JSON cho các kiểu phức tạp (List, Object lồng)
-        ReadOnlySpan<byte> span = ((ReadOnlyMemory<byte>)val).Span;
-        return JsonSerializer.Deserialize(span, type, Options);
+        var jsonString = JsonSerializer.Serialize(obj, Options);
+        await db.StringSetAsync(key, jsonString, (Expiration)expiry);
     }
 
-    // 2. Hàm Deserialize Generic (Vẫn giữ để dùng cho các chỗ khác như GetFieldAsync)
-    private static T Deserialize<T>(RedisValue val)
-    {
-        return (T)Deserialize(val, typeof(T))!;
-    }
-
-    /// <summary>
-    /// Set toàn bộ object thành JSON Blob (Redis String)
-    /// </summary>
-    public static async Task SetObjectAsJsonAsync<T>(
-        IDatabase db,
-        string key,
-        T obj,
-        TimeSpan expiry)
-    {
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(obj, Options);
-
-        await db.StringSetAsync(
-            key,
-            bytes,
-            expiry
-        );
-    }
-
-    /// <summary>
-    /// Get toàn bộ object từ JSON Blob (Redis String)
-    /// </summary>
-    public static async Task<T?> GetObjectFromJsonAsync<T>(
-        IDatabase db,
-        string key)
+    public static async Task<T?> GetObjectFromJsonAsync<T>(IDatabase db, string key)
     {
         var val = await db.StringGetAsync(key);
         if (val.IsNullOrEmpty) return default;
 
-        ReadOnlySpan<byte> span = ((ReadOnlyMemory<byte>)val).Span;
-        return JsonSerializer.Deserialize<T>(span, Options);
+        return JsonSerializer.Deserialize<T>(val.ToString(), Options);
     }
 
+    public static async Task DeleteFieldsAsync(IDatabase db, string key, params string[] fields)
+    {
+        if (fields.Length == 0) return;
+        var redisFields = Array.ConvertAll(fields, f => (RedisValue)f);
+        await db.HashDeleteAsync(key, redisFields);
+    }
+
+    public static async Task<bool> FieldExistsAsync(IDatabase db, string key, string field)
+        => await db.HashExistsAsync(key, field);
+
+    #region Private Helpers (Rút gọn)
+
+    private static RedisValue SerializeToRedisValue(object? obj)
+    {
+        if (obj == null) return RedisValue.Null;
+
+        if (obj is string || obj is ValueType && !(obj is Guid || obj is DateTime || obj is DateTimeOffset))
+        {
+            return obj.ToString()!;
+        }
+
+        return JsonSerializer.Serialize(obj, Options);
+    }
+
+    private static T? DeserializeRedisValue<T>(RedisValue val)
+    {
+        var str = val.ToString();
+
+        if (typeof(T) == typeof(string)) return (T?)(object)str;
+
+        try
+        {
+            return JsonSerializer.Deserialize<T>(str, Options);
+        }
+        catch (JsonException)
+        {
+            return (T?)Convert.ChangeType(str, typeof(T));
+        }
+    }
+
+    #endregion
 }

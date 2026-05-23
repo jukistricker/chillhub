@@ -1,5 +1,7 @@
 using chillhub.Entities.Auth;
+using chillhub.Mapping;
 using chillhub.Models.Dtos.Requests;
+using chillhub.Models.Dtos.Requests.Search;
 using chillhub.Models.Dtos.Responses;
 using chillhub.Models.Dtos.Responses.Search;
 using chillhub.Models.Dtos.Responses.Shared;
@@ -11,10 +13,14 @@ namespace chillhub.Services.Rbac;
 public class RbacService : IRbacService
 {
     private readonly IRbacRepository _rbacRepo;
+    private readonly IPermissionGroupRepository _permissionGroupRepository;
+    private readonly IRoleRepository _roleRepository;
 
-    public RbacService(IRbacRepository repo)
+    public RbacService(IRbacRepository rbacRepo, IPermissionGroupRepository permissionGroupRepository, IRoleRepository roleRepository)
     {
-        _rbacRepo = repo;
+        _rbacRepo = rbacRepo;
+        _permissionGroupRepository = permissionGroupRepository;
+        _roleRepository = roleRepository;
     }
 
     public async Task<IResult> CreatePermissionGroupAsync(PermissionGroupSaveRequest request)
@@ -38,9 +44,8 @@ public class RbacService : IRbacService
 
     public async Task<IResult> SearchPermissionGroupsAsync(PermissionGroupFilterRequest request)
     {
-        var (items, nextCursor) = await _rbacRepo.GetPermissionGroupsAsync(request);
-
-        var response = new PagedResponse<PermissionGroupResponse>(items, nextCursor);
+        var pagedResult = await _permissionGroupRepository.GetPermissionGroupsAsync(request);
+        CursorResponse<PermissionGroupResponse> response = PermissionGroupMapping.ToPermissionGroupResponseCursor(pagedResult);
         return ResponseDto.Create(ResponseCatalog.Success, "rbac.permission_groups.list", response);
     }
 
@@ -64,10 +69,9 @@ public class RbacService : IRbacService
 
     public async Task<IResult> SearchRolesAsync(RoleFilterRequest request)
     {
-        var (items, nextCursor) = await _rbacRepo.GetRolesAsync(request);
 
-        var response = new PagedResponse<Role>(items, nextCursor);
-        return ResponseDto.Create(ResponseCatalog.Success, "rbac.role.list", response);
+        var pagedResult = await _roleRepository.GetRolesAsync(request);
+        return ResponseDto.Create(ResponseCatalog.Success, "rbac.role.list", pagedResult);
     }
 
     public async Task<IResult> CreatePermissionAsync(List<PermissionSaveRequest> requests)
@@ -247,9 +251,10 @@ public class RbacService : IRbacService
 
     public async Task<IResult> SearchPermissionsAsync(PermissionFilterRequest request)
     {
-        var (items, nextCursor) = await _rbacRepo.GetPermissionsAsync(request);
 
-        var response = new PagedResponse<PermissionResponse>(items, nextCursor);
+        var pagedResult = await _rbacRepo.GetPermissionsAsync(request);
+        CursorResponse<PermissionResponse> response = RbacMapping.ToPermissionResponseCursor(pagedResult);
+
         return ResponseDto.Create(ResponseCatalog.Success, "rbac.permission.list", response);
     }
 

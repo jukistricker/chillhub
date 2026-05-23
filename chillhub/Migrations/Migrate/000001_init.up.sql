@@ -35,96 +35,39 @@ RETURN (
 END;
 $$ LANGUAGE plpgsql VOLATILE;
 
--- 2. Tạo bảng Permission Groups
-CREATE TABLE IF NOT EXISTS public.permission_groups (
-                                                        id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
-    name VARCHAR(255) NOT NULL,
-    code VARCHAR(100) NOT NULL UNIQUE,
-    sort_order INTEGER DEFAULT 0,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by UUID,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_by UUID
-    );
-
--- 3. Tạo bảng Permissions
-CREATE TABLE IF NOT EXISTS public.permissions (
-                                                  id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
-    code VARCHAR(100) NOT NULL UNIQUE,
-    permission_group_id UUID NOT NULL REFERENCES public.permission_groups(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by UUID,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_by UUID
-    );
-
--- 4. Tạo bảng Roles
-CREATE TABLE IF NOT EXISTS public.roles (
-                                            id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
-    name VARCHAR(100) NOT NULL UNIQUE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by UUID,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_by UUID
-    );
-
--- 5. Tạo bảng Users
-CREATE TABLE IF NOT EXISTS public.users (
-                                            id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
-    username VARCHAR(100) NOT NULL UNIQUE,
-    password TEXT NOT NULL,
-    lang INTEGER DEFAULT 0,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by UUID,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_by UUID
-    );
-
--- 6. Tạo bảng trung gian Role_Permissions
-CREATE TABLE IF NOT EXISTS public.role_permissions (
-                                                       role_id UUID NOT NULL REFERENCES public.roles(id) ON DELETE CASCADE,
-    permission_id UUID NOT NULL REFERENCES public.permissions(id) ON DELETE CASCADE,
-    PRIMARY KEY (role_id, permission_id)
-    );
-
--- 7. Tạo bảng trung gian User_Roles
-CREATE TABLE IF NOT EXISTS public.user_roles (
-                                                 user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-    role_id UUID NOT NULL REFERENCES public.roles(id) ON DELETE CASCADE,
-    PRIMARY KEY (user_id, role_id)
-    );
 
 --- SEED DATA ---
 
-INSERT INTO public.roles (name)
-VALUES ('admin'), ('user')
-    ON CONFLICT (name) DO NOTHING;
+INSERT INTO public.roles (id, name)
+SELECT uuid_generate_v7(), n FROM (VALUES ('admin'), ('user')) AS v(n)
+ON CONFLICT (name) DO NOTHING;
 
-INSERT INTO public.permission_groups (name, code, sort_order)
-VALUES ('Auth', 'auth_group', 1), ('User', 'user_group', 2)
-    ON CONFLICT (code) DO NOTHING;
+INSERT INTO public.permission_groups (id, name, code, sort_order)
+VALUES 
+    (uuid_generate_v7(), 'Auth', 'auth_group', 1), 
+    (uuid_generate_v7(), 'User', 'user_group', 2)
+ON CONFLICT (code) DO NOTHING;
 
 -- Seed Permissions
-INSERT INTO public.permissions (code, permission_group_id)
-SELECT 'auth.login', id FROM public.permission_groups WHERE code = 'auth_group'
+INSERT INTO public.permissions (id, code, permission_group_id)
+SELECT uuid_generate_v7(), 'auth.login', id FROM public.permission_groups WHERE code = 'auth_group' ON CONFLICT (code) DO NOTHING;
+INSERT INTO public.permissions (id, code, permission_group_id)
+SELECT uuid_generate_v7(), 'auth.logout', id FROM public.permission_groups WHERE code = 'auth_group'
     ON CONFLICT (code) DO NOTHING;
-INSERT INTO public.permissions (code, permission_group_id)
-SELECT 'auth.logout', id FROM public.permission_groups WHERE code = 'auth_group'
+INSERT INTO public.permissions (id, code, permission_group_id)
+SELECT uuid_generate_v7(), 'user.read', id FROM public.permission_groups WHERE code = 'user_group'
     ON CONFLICT (code) DO NOTHING;
-INSERT INTO public.permissions (code, permission_group_id)
-SELECT 'user.read', id FROM public.permission_groups WHERE code = 'user_group'
+INSERT INTO public.permissions (id, code, permission_group_id)
+SELECT uuid_generate_v7(), 'user.create', id FROM public.permission_groups WHERE code = 'user_group'
     ON CONFLICT (code) DO NOTHING;
-INSERT INTO public.permissions (code, permission_group_id)
-SELECT 'user.create', id FROM public.permission_groups WHERE code = 'user_group'
+INSERT INTO public.permissions (id, code, permission_group_id)
+SELECT uuid_generate_v7(), 'user.update', id FROM public.permission_groups WHERE code = 'user_group'
     ON CONFLICT (code) DO NOTHING;
-INSERT INTO public.permissions (code, permission_group_id)
-SELECT 'user.update', id FROM public.permission_groups WHERE code = 'user_group'
+INSERT INTO public.permissions (id, code, permission_group_id)
+SELECT uuid_generate_v7(), 'user.delete', id FROM public.permission_groups WHERE code = 'user_group'
     ON CONFLICT (code) DO NOTHING;
-INSERT INTO public.permissions (code, permission_group_id)
-SELECT 'user.delete', id FROM public.permission_groups WHERE code = 'user_group'
-    ON CONFLICT (code) DO NOTHING;
-INSERT INTO public.permissions (code, permission_group_id)
-SELECT 'user.view_users', id FROM public.permission_groups WHERE code = 'user_group'
+INSERT INTO public.permissions (id, code, permission_group_id)
+SELECT uuid_generate_v7(), 'user.view_users', id FROM public.permission_groups WHERE code = 'user_group'
     ON CONFLICT (code) DO NOTHING;
 
 -- Admin Role Permissions (Full)
@@ -147,8 +90,8 @@ v_role_id UUID;
 BEGIN
 SELECT id INTO v_role_id FROM public.roles WHERE name = 'admin' LIMIT 1;
 
-INSERT INTO public.users (username, password, lang)
-VALUES ('admin', v_hash, 1)
+INSERT INTO public.users (id, username, password, lang)
+VALUES (uuid_generate_v7(), 'admin', v_hash, 1)
     ON CONFLICT (username) DO UPDATE SET updated_at = NOW()
                                   RETURNING id INTO v_admin_id;
 

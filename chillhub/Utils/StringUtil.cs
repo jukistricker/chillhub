@@ -10,18 +10,19 @@ public static class StringUtil
                 i > 0 && char.IsUpper(x) ? "_" + x : x.ToString()))
             .ToLower();
     }
-    
+
     public static string ToPascalCase(string input)
     {
         if (string.IsNullOrEmpty(input)) return input;
-        return string.Concat(input.Split('_')
-            .Select(s => char.ToUpper(s[0]) + s.Substring(1)));
+
+        return string.Concat(input.Split('_', StringSplitOptions.RemoveEmptyEntries) // Loại bỏ phần tử rỗng
+            .Select(s => s.Length > 0 ? char.ToUpper(s[0]) + s.Substring(1) : s));
     }
 
     public static string? ProcessSelectFields(string? select)
     {
         if (string.IsNullOrEmpty(select)) return null;
-        // Chuyển "username,created_at" -> "Username,CreatedAt"
+        // "username,created_at" -> "Username,CreatedAt"
         return string.Join(",", select.Split(',').Select(s => ToPascalCase(s.Trim())));
     }
     

@@ -71,9 +71,15 @@ public sealed class TokenUtil
 
     public string? GetJti(string token)
     {
+        var jwt = HandleJwt(token);
+        return jwt.GetClaim(JwtRegisteredClaimNames.Jti).Value;
+    }
+
+    public JsonWebToken HandleJwt(string token)
+    {
         if (!_handler.CanReadToken(token)) return null;
         var jwt = _handler.ReadJsonWebToken(token);
-        return jwt.GetClaim(JwtRegisteredClaimNames.Jti).Value;
+        return jwt;
     }
 
     public async Task<ClaimsPrincipal?> ValidateCryptoAsync(string token)

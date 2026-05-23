@@ -13,7 +13,7 @@ namespace chillhub.Entities.Auth
         public string? Provider { get; set; }        // "google", "local", "github"...
         public string? ExternalId { get; set; }      // ID từ Provider gửi về
         public LanguageEnum Lang { get; set; }
-        public List<UserRole> UserRoles { get; set; } = new();
+        public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
     }
 
 }

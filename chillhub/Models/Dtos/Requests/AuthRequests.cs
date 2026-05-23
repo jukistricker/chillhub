@@ -25,7 +25,7 @@ public class SignInDto
     public string Password { get; set; } = null!;
 }
 
-public class AuthFilterRequest : BaseFilterRequest
+public class AuthFilterRequest : CursorRequest
 {
     public Guid? Id { get; set; }
     public string? Username { get; set; }

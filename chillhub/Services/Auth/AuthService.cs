@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Identity;
 
 namespace chillhub.Services.Auth;
 
+using chillhub.Mapping;
+using chillhub.Models.Dtos.Requests.Search;
 using Entities.Auth;
 using Models.Dtos.Requests;
 using Models.Dtos.Responses.Shared;
@@ -20,6 +22,7 @@ public class AuthService : IAuthService
     private readonly ISessionRepository _sessionRepo;
     private readonly TokenUtil _tokenUtil;
     private readonly IPasswordHasher<User> _passwordHasher;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
     private readonly TimeSpan _sessionTtl = TimeSpan.FromHours(2);
 
@@ -27,24 +30,28 @@ public class AuthService : IAuthService
          IAuthRepository authRepo,
         ISessionRepository sessionRepo,
         TokenUtil tokenUtil,
-         IPasswordHasher<User> passwordHasher)
+         IPasswordHasher<User> passwordHasher,
+         IHttpContextAccessor httpContextAccessor
+        )
     {
         _authRepo = authRepo;
         _sessionRepo = sessionRepo;
         _tokenUtil = tokenUtil;
         _passwordHasher = passwordHasher;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<IResult> SignUpAsync(SignUpDto dto)
     {
-        // 1. Chặn sớm bằng DB 
         if (await _authRepo.UsernameExistsAsync(dto.Username))
             return ResponseDto.Create(ResponseCatalog.Conflict, "auth.username_exists");
 
-        // 2.  Cache Default Role ID
-        Guid defaultRoleId = GlobalCache.DefaultUserRoleId;
+        Guid? defaultRoleId = await _authRepo.GetDefaultRoleIdAsync();
+        if(defaultRoleId == null)
+        {
+            ResponseDto.Create(ResponseCatalog.NotFound, "auth.user_role_not_exist");
+        }
 
-        // 3. Logic Language 
         LanguageEnum lang = (dto.InitLang == LanguageEnum.En) ? LanguageEnum.En : LanguageEnum.Vi;
 
         Guid userId = Guid.CreateVersion7();
@@ -59,12 +66,12 @@ public class AuthService : IAuthService
             UpdatedBy = userId,
             UserRoles = new List<UserRole> 
             { 
-                new UserRole { UserId = userId, RoleId = defaultRoleId } 
+                new UserRole { UserId = userId, RoleId = defaultRoleId.Value } 
             }
         };
         user.Password = _passwordHasher.HashPassword(user, dto.Password);
     
-        await _authRepo.AddUserAsync(user);
+        await _authRepo.AddAsync(user);
         await _authRepo.SaveChangesAsync();
 
         return ResponseDto.Create(ResponseCatalog.Created, "auth.signup_success");
@@ -105,24 +112,37 @@ public class AuthService : IAuthService
         return ResponseDto.Create(ResponseCatalog.Success, "auth.login_success", token);
     }
 
-    public async Task<IResult> SignOutAsync(string jti)
+    public async Task<IResult> SignOutAsync()
     {
+        var context = _httpContextAccessor.HttpContext;
+
+        if (context == null)
+        {
+            return ResponseDto.Create(ResponseCatalog.Internal, "system.http_context_not_found");
+        }
+
+        string? jti = HttpContextUtil.GetJti(context);
         await _sessionRepo.DeleteAsync(jti);
         return Results.NoContent();
     }
          
     public async Task<IResult> GetUsersAsync(AuthFilterRequest req)
     {
-        // Nhận về Tuple (Items, NextCursor)
-        var (items, nextCursor) = await _authRepo.GetUsersAsync(req);
-
-        // 3. Đóng gói vào DTO chuẩn
-        PagedResponse<UserResponse> response= new PagedResponse<UserResponse>(items, nextCursor);
+        var pagedUsers = await _authRepo.GetUsersAsync(req);
+        CursorResponse<UserResponse> response=  UserMapping.ToCursorResponse(pagedUsers);
         return ResponseDto.Create(ResponseCatalog.Success, "auth.users_list", response);
     }
 
-    public async Task<IResult> GetPermissionAsync(string jti)
+    public async Task<IResult> GetPermissionAsync()
     {
+        var context = _httpContextAccessor.HttpContext;
+
+        if (context == null)
+        {
+            return ResponseDto.Create(ResponseCatalog.Internal, "system.http_context_not_found");
+        }
+
+        string? jti = HttpContextUtil.GetJti(context);
         UserSession? session = await _sessionRepo.GetAsync(jti);
         if (session == null)
         {
