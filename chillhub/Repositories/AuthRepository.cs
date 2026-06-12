@@ -15,6 +15,8 @@ public class AuthRepository : Repository<User>, IAuthRepository
     {
         _db = dbContext;
     }
+    public Task<bool> EmailExistsAsync(string email)
+        => _dbSet.AnyAsync(u => u.Email == email);
 
     public Task<bool> UsernameExistsAsync(string username)
         => _dbSet.AnyAsync(u => u.Username == username);
@@ -59,10 +61,10 @@ public class AuthRepository : Repository<User>, IAuthRepository
             .ToHashSet();
     }
 
-    public async Task<UserFullInfo?> GetFullUserInfoAsync(string username)
+    public async Task<UserFullInfo?> GetFullUserInfoAsync(string email)
     {
         var data = await _dbSet
-            .Where(u => u.Username == username)
+            .Where(u => u.Email == email)
             .Select(u => new
             {
                 User = u,
@@ -98,10 +100,15 @@ public class AuthRepository : Repository<User>, IAuthRepository
             query = query.Where(x=>x.Username  == req.Username);
         }
 
-        if (!string.IsNullOrEmpty(req.Search))
+        if (!string.IsNullOrWhiteSpace(req.Search))
         {
-            query = query.Where(u => EF.Functions.ILike(u.FullName, $"%{req.Search.Trim()}%"));
+            var search = req.Search.Trim();
+
+            query = query.Where(u =>
+                EF.Functions.ILike(u.FullName, $"%{search}%") ||
+                EF.Functions.ILike(u.Username, $"%{search}%"));
         }
+        query = query.Include(u => u.UserRoles).ThenInclude(ur => ur.Role);
         
         return await GetByCursorAsync(query, req, u => u.Id);
     }

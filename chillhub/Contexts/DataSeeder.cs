@@ -74,6 +74,8 @@ public static class DataSeeder
             {
                 Id = AdminUserId,
                 Username = "admin",
+                Email = "admin@chillhub.id.vn",
+                FullName = "admin",
                 Password = "AQAAAAIAACcQAAAAEJL3PEfuwNrQOTsclnmWeXII/9NzpgehrbMF6gOzBfg4BjsiMVqewvfP5/LtaNKj4w==",
                 Lang = LanguageEnum.Vi,
                 CreatedAt = DateTimeOffset.UtcNow,

@@ -71,12 +71,23 @@ public class RbacService : IRbacService
     {
 
         var pagedResult = await _roleRepository.GetRolesAsync(request);
-        return ResponseDto.Create(ResponseCatalog.Success, "rbac.role.list", pagedResult);
+        var dtoItems = pagedResult.Items.Select(r => new RoleResponse
+        {
+            Id = r.Id,
+            Name = r.Name,
+            Permissions = r.RolePermissions
+        .Select(rp => new PermissionResponse
+        {
+            Id = rp.Permission.Id,
+            Name = rp.Permission.Name,
+            Code = rp.Permission.Code
+        }).ToList()
+        }).ToList();
+        return ResponseDto.Create(ResponseCatalog.Success, "rbac.role.list", dtoItems);
     }
 
     public async Task<IResult> CreatePermissionAsync(List<PermissionSaveRequest> requests)
     {
-        // 1. Thu thập dữ liệu đối chiếu (Thêm check null cho RoleId)
         var codesToCheck = requests.Select(r => r.Code).Distinct().ToList();
 
         var groupIdsToCheck = requests
@@ -85,7 +96,6 @@ public class RbacService : IRbacService
             .Distinct()
             .ToList();
 
-        // Dùng ?? new List<Guid>() để SelectMany không bị nổ khi gặp null
         var roleIdsToCheck = requests
             .SelectMany(r => r.RoleId ?? new List<Guid>())
             .Distinct()
@@ -151,7 +161,7 @@ public class RbacService : IRbacService
         if (!await _rbacRepo.SavePermissionBatchAsync(permissions, rolePermissions))
             return ResponseDto.Create(ResponseCatalog.Internal, "rbac.permission.save_failed");
 
-        return ResponseDto.Create(ResponseCatalog.Created, "rbac.permission.created");
+        return ResponseDto.Create(ResponseCatalog.Created, "rbac.permission.created", RbacMapping.ToPermissionResponseList(permissions));
     }
 
     public async Task<IResult> UpdatePermissionAsync(List<PermissionSaveRequest> requests)
@@ -242,11 +252,10 @@ public class RbacService : IRbacService
                 }));
         }
 
-        // 5. Lưu xuống Repo: idsInRequest chứa tất cả các ID cần được l
         if (!await _rbacRepo.UpsertPermissionsBatchAsync(permissionIdsInRequest, permissionsToSave, rolePermissionsToSave))
             return ResponseDto.Create(ResponseCatalog.Internal, "rbac.permission.save_failed");
 
-        return ResponseDto.Create(ResponseCatalog.Success, "rbac.permission.update_success");
+        return ResponseDto.Create(ResponseCatalog.Success, "rbac.permission.update_success", RbacMapping.ToPermissionResponseList(permissionsToSave));
     }
 
     public async Task<IResult> SearchPermissionsAsync(PermissionFilterRequest request)
@@ -263,22 +272,19 @@ public class RbacService : IRbacService
         List<UserRole> existingUserRoles = await _rbacRepo.GetUserRolesAsync(request.UserId);
         HashSet<Guid> existingRoleIds = existingUserRoles.Select(ur => ur.RoleId).ToHashSet();
     
-        // Dùng Dictionary: Key là ID của Role, Value là thông điệp lỗi
         Dictionary<Guid,string> errorMap = new Dictionary<Guid, string>();
 
-        // 1. Check Giao thoa (Return sớm vì đây là lỗi logic request)
         List<Guid>? intersection = request.AddRoleIds?.Intersect(request.RemoveRoleIds ?? new HashSet<Guid>()).ToList();
         if (intersection?.Any() == true)
             return ResponseDto.Create(ResponseCatalog.BadRequest, "rbac.user_role.duplicate_in_add_and_remove", intersection);
 
-        // 2. Xử lý Xóa
         if (request.RemoveRoleIds != null)
         {
             foreach (var roleId in request.RemoveRoleIds)
             {
                 UserRole? toRemove = existingUserRoles.FirstOrDefault(ur => ur.RoleId == roleId);
                 if (toRemove == null) 
-                    errorMap[roleId] = "rbac.user_role.not_found_for_removal"; // Key-Value
+                    errorMap[roleId] = "rbac.user_role.not_found_for_removal"; 
                 else 
                     _rbacRepo.Remove(toRemove);
             }

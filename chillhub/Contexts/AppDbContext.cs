@@ -1,5 +1,6 @@
 ﻿using chillhub.Entities;
 using chillhub.Entities.Auth;
+using chillhub.Entities.Media;
 using chillhub.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -17,8 +18,9 @@ public class AppDbContext : DbContext
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
-
     public DbSet<PermissionGroup> PermissionGroups => Set<PermissionGroup>();
+    public DbSet<Category> Categories => Set<Category>();
+    public DbSet<Media> Medias => Set<Media>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

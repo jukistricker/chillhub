@@ -18,14 +18,26 @@ public static class RbacMapping
 
             PermissionGroupName = permission.PermissionGroup != null ? permission.PermissionGroup.Name : string.Empty,
 
-            RoleId = permission.RolePermissions.Select(rp => rp.RoleId).FirstOrDefault(),
-            RoleName = permission.RolePermissions.Select(rp => rp.Role.Name).FirstOrDefault() ?? string.Empty,
-
             CreatedAt = permission.CreatedAt,
             CreatedBy = permission.CreatedBy,
             UpdatedAt = permission.UpdatedAt,
             UpdatedBy = permission.UpdatedBy
         };
+    }
+
+    public static List<PermissionResponse> ToPermissionResponseList(List<Permission> source)
+    {
+        var targetItems = new List<PermissionResponse>(source.Count);
+
+        foreach (var item in source)
+        {
+            var mapped = ToPermissionResponse(item);
+            if (mapped != null)
+            {
+                targetItems.Add(mapped);
+            }
+        }
+        return targetItems;
     }
 
     public static CursorResponse<PermissionResponse> ToPermissionResponseCursor(CursorResponse<Permission> source)

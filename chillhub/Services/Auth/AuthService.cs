@@ -9,6 +9,7 @@ namespace chillhub.Services.Auth;
 using chillhub.Mapping;
 using chillhub.Models.Dtos.Requests.Search;
 using Entities.Auth;
+using Microsoft.EntityFrameworkCore;
 using Models.Dtos.Requests;
 using Models.Dtos.Responses.Shared;
 using Repositories.Interfaces;
@@ -24,7 +25,7 @@ public class AuthService : IAuthService
     private readonly IPasswordHasher<User> _passwordHasher;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
-    private readonly TimeSpan _sessionTtl = TimeSpan.FromHours(2);
+    private readonly TimeSpan _sessionTtl = TimeSpan.FromMinutes(15);
 
     public AuthService(
          IAuthRepository authRepo,
@@ -43,8 +44,8 @@ public class AuthService : IAuthService
 
     public async Task<IResult> SignUpAsync(SignUpDto dto)
     {
-        if (await _authRepo.UsernameExistsAsync(dto.Username))
-            return ResponseDto.Create(ResponseCatalog.Conflict, "auth.username_exists");
+        if (await _authRepo.EmailExistsAsync(dto.Email))
+            return ResponseDto.Create(ResponseCatalog.Conflict, "auth.email_existed");
 
         Guid? defaultRoleId = await _authRepo.GetDefaultRoleIdAsync();
         if(defaultRoleId == null)
@@ -60,7 +61,9 @@ public class AuthService : IAuthService
         User user = new User
         {
             Id = userId,
-            Username = dto.Username,
+            Username = dto.Email,
+            FullName = dto.Email,
+            Email= dto.Email,
             Lang = lang,
             CreatedBy = userId,
             UpdatedBy = userId,
@@ -78,7 +81,7 @@ public class AuthService : IAuthService
     }
     public async Task<IResult> SignInAsync(SignInDto dto)
     {
-        UserFullInfo fullInfo = await _authRepo.GetFullUserInfoAsync(dto.Username);
+        UserFullInfo fullInfo = await _authRepo.GetFullUserInfoAsync(dto.Email);
 
         if (fullInfo == null)
             return ResponseDto.Create(ResponseCatalog.Unauthorized, "auth.invalid_credential");
@@ -98,6 +101,7 @@ public class AuthService : IAuthService
         {
             UserId = fullInfo.User.Id,
             Username = fullInfo.User.Username,
+            Email= fullInfo.User.Email,
             RoleIds = fullInfo.RoleIds,
             Permissions = fullInfo.Permissions,
             Lang = fullInfo.User.Lang,
@@ -133,6 +137,21 @@ public class AuthService : IAuthService
         return ResponseDto.Create(ResponseCatalog.Success, "auth.users_list", response);
     }
 
+    public async Task<IResult> GetPersonalInfo()
+    {
+        UserSession? session = HttpContextUtil.GetUserSession(_httpContextAccessor.HttpContext);
+        if (session == null)
+        {
+            return ResponseDto.Create(ResponseCatalog.Unauthorized, "auth.session_not_found");
+        }
+        UserFullInfo? user =await _authRepo.GetFullUserInfoAsync(session.Email);
+        if (user == null)
+        {
+            return ResponseDto.Create(ResponseCatalog.Unauthorized, "auth.user_not_found");
+        }
+        return ResponseDto.Create(ResponseCatalog.Success, "auth.user_info", user);
+    }
+
     public async Task<IResult> GetPermissionAsync()
     {
         var context = _httpContextAccessor.HttpContext;
@@ -142,8 +161,7 @@ public class AuthService : IAuthService
             return ResponseDto.Create(ResponseCatalog.Internal, "system.http_context_not_found");
         }
 
-        string? jti = HttpContextUtil.GetJti(context);
-        UserSession? session = await _sessionRepo.GetAsync(jti);
+        UserSession? session = HttpContextUtil.GetUserSession(context);
         if (session == null)
         {
             return ResponseDto.Create(ResponseCatalog.Unauthorized, "auth.session_not_found");

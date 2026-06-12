@@ -10,4 +10,5 @@ public interface IAuthService
     Task<IResult> SignOutAsync();
     Task<IResult> GetUsersAsync(AuthFilterRequest req);
     Task<IResult> GetPermissionAsync();
+    Task<IResult> GetPersonalInfo();
 }

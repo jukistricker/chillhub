@@ -32,7 +32,8 @@ public class Repository<T> : IRepository<T> where T : class
         return await _dbSet.AnyAsync(predicate);
     }
 
-    public async Task<CursorResponse<T>> GetByCursorAsync<TKey>(
+    public async Task<CursorResponse<T>> 
+        GetByCursorAsync<TKey>(
         IQueryable<T> query,
         CursorRequest request,
         Expression<Func<T, TKey>> idSelector) where TKey : IComparable

@@ -201,12 +201,13 @@ public class RbacRepository : Repository<Permission>, IRbacRepository
             .Select(r => r.Id).ToListAsync();
     }
 
-    public async Task<CursorResponse<Permission>> GetPermissionsAsync(PermissionFilterRequest request)
+    public async Task<CursorResponse<Permission>> 
+        
+        
+        GetPermissionsAsync(PermissionFilterRequest request)
     {
         IQueryable<Permission> query = _db.Permissions.AsNoTracking()
-            .Include(x => x.PermissionGroup)
-            .Include(x => x.RolePermissions)
-                .ThenInclude(rp => rp.Role);
+            .Include(x => x.PermissionGroup);
 
         if (request.Id.HasValue)
         {

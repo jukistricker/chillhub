@@ -8,13 +8,14 @@ namespace chillhub.Repositories.Interfaces;
 
 public interface IAuthRepository : IRepository<User>
 {
+    Task<bool> EmailExistsAsync(string email);
     Task<bool> UsernameExistsAsync(string username);
     Task<User?> GetByUsernameAsync(string username);
     Task<Guid?> GetDefaultRoleIdAsync();
     Task<List<Guid>> GetExistingRoleIdsAsync(HashSet<Guid> roleIds);
     Task<HashSet<Guid>> GetUserRoleIdsAsync(Guid userId);
     Task<HashSet<string>> GetUserPermissionCodesAsync(Guid userId);
-    Task<UserFullInfo?> GetFullUserInfoAsync(string username);
+    Task<UserFullInfo?> GetFullUserInfoAsync(string email);
     Task AddUserRolesAsync(IEnumerable<UserRole> roles);
     Task<CursorResponse<User>> GetUsersAsync(AuthFilterRequest req);
 }

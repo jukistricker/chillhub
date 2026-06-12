@@ -1,4 +1,6 @@
-﻿namespace chillhub.Entities.Media;
+﻿using chillhub.Models.Enums;
+
+namespace chillhub.Entities.Media;
 
 public class Media:BaseEntity
 {
@@ -7,7 +9,7 @@ public class Media:BaseEntity
     public string? Thumbnail { get; set; }
     public int Duration { get; set; }
     public Guid UserId { get; set; }
-    public int Type { get; set; }
+    public MediaType Type { get; set; }
     public long LikeCount { get; set; }
     public long DislikeCount { get; set; }
     public float? OverallRating { get; set; }

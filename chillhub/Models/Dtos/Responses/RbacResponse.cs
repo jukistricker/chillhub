@@ -15,6 +15,4 @@ public class PermissionResponse:BaseResponse
     public string Code { get; set; } = null!; 
     public Guid PermissionGroupId { get; set; }
     public string PermissionGroupName { get; set; }
-    public Guid RoleId { get; set; }
-    public string RoleName { get; set; }
 }

@@ -6,7 +6,6 @@
         DateTimeOffset UpdatedAt { get; set; }
     }
     
-    // Loại có Generic
     public abstract class BaseEntity<T> : IAuditEntity
     {
         public T Id { get; set; }

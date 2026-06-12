@@ -1,4 +1,6 @@
-﻿namespace chillhub.Entities.Auth;
+﻿using System.Text.Json.Serialization;
+
+namespace chillhub.Entities.Auth;
 
 public class Permission:BaseEntity
 {

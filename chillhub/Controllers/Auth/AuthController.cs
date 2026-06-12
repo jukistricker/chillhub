@@ -26,13 +26,6 @@ public class AuthController : ControllerBase
         return await _authService.SignUpAsync(dto);
     }
 
-    [HttpGet("test")]
-    [AllowAnonymous]
-    public async Task<IResult> test()
-    {
-        return ResponseDto.Create(ResponseCatalog.Success, "auth.test_success");
-    }
-
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<IResult> Login([FromBody] SignInDto dto)
@@ -48,7 +41,6 @@ public class AuthController : ControllerBase
     }
     
     [HttpGet]
-    [RequiredPermission("user.view_users")]
     public async Task<IResult> GetAll([FromQuery] AuthFilterRequest req)
     {
         return await _authService.GetUsersAsync(req);
@@ -60,5 +52,12 @@ public class AuthController : ControllerBase
     public async Task<IResult> GetSession()
     {
         return await _authService.GetPermissionAsync();
+    }
+
+    [HttpGet("info")]
+    [RequiredPermission("auth.view_session")]
+    public async Task<IResult> GetPersonalInfo()
+    {
+        return await _authService.GetPersonalInfo();
     }
 }

@@ -21,6 +21,11 @@ public class RoleRepository : Repository<Role>, IRoleRepository
         if (request.Id.HasValue)
             query = query.Where(x => x.Id == request.Id);
 
+        if(request.Search != null)
+            query = query.Where(x => x.Name.Contains(request.Search));
+
+        query=query.Include(r=> r.RolePermissions).ThenInclude(rp => rp.Permission);
+
         return await GetByCursorAsync(query, request, u => u.Id);
     }
 

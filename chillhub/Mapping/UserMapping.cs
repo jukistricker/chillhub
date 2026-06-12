@@ -22,7 +22,16 @@ public static class UserMapping
             Email = user.Email,
             FullName = user.FullName,
             AvatarUrl = user.AvatarUrl,
-            Provider = user.Provider
+            Provider = user.Provider,
+            Roles = user.UserRoles
+                        .Where(ur => ur.Role != null) 
+                        .Select(ur => new RoleResponse
+                        {
+                            Id= ur.Role.Id,
+                            Name= ur.Role.Name
+                        }) 
+                        .ToList()
+
         };
     }
 

@@ -1,5 +1,6 @@
-using System.Security.Claims;
+using chillhub.Models.Dtos.Responses;
 using Microsoft.IdentityModel.JsonWebTokens;
+using System.Security.Claims;
 
 namespace chillhub.Utils;
 
@@ -30,5 +31,18 @@ public static class HttpContextUtil
         }
 
         return context.User?.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+    }
+
+    public static UserSession? GetUserSession(this HttpContext? context)
+    {
+        if (context == null) return null;
+
+        if (context.Items.TryGetValue("UserSession", out var sessionObj) &&
+            sessionObj is UserSession userSession)
+        {
+            return userSession;
+        }
+
+        return null;
     }
 }

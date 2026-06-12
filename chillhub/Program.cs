@@ -4,18 +4,22 @@ using chillhub.Middlewares;
 using chillhub.Models.Dtos.Responses.Shared;
 using chillhub.Repositories;
 using chillhub.Repositories.Interfaces;
+using chillhub.Services;
 using chillhub.Services.Auth;
+using chillhub.Services.Interfaces;
 using chillhub.Services.Interfaces.Auth;
 using chillhub.Services.Interfaces.Rbac;
 using chillhub.Services.Rbac;
 using chillhub.Utils;
+using Hangfire;
+using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
-using StackExchange.Redis;
 using Prometheus;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,7 +55,6 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
             .Select(e => e.ErrorMessage)
             .FirstOrDefault() ?? "invalid.request_format";
 
-        // Trả về ResponseDto chuẩn của bạn
         return new BadRequestObjectResult(ResponseDto.Create(ResponseCatalog.BadRequest, errorMessage));
     };
 });
@@ -65,6 +68,12 @@ builder.Services.Configure<PasswordHasherOptions>(opt =>
 });
 
 // Add services to the container.
+builder.Services.AddHangfire(config =>
+{
+    config.UsePostgreSqlStorage(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
+
+builder.Services.AddHangfireServer();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -103,15 +112,26 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddHttpContextAccessor();
 
 // Đăng ký Repository 
+builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 builder.Services.AddScoped<ISessionRepository, SessionRepository>();
 builder.Services.AddScoped<IRbacRepository, RbacRepository>();
 builder.Services.AddScoped<IPermissionGroupRepository, PermissionGroupRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<IMediaCategoryRepository, MediaCategoryRepository>();
+builder.Services.AddScoped<IMediaRepository, MediaRepository>();
+
+
 
 // Đăng ký Service
+builder.Services.AddScoped<IHangfireService, HangfireService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IRbacService, RbacService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IMediaService, MediaService>();
+
 
 //Đăng ký các Unstatic Util
 builder.Services.AddSingleton<TokenUtil>();
@@ -136,12 +156,10 @@ var app = builder.Build();
 
 app.UseRouting();
 
-// Phải nằm SAU UseRouting và TRƯỚC UseAuthorization
 app.UseCors("MultiPlatformPolicy");
 
 app.Use(async (context, next) =>
 {
-    // Log giao thức của request hiện tại ra Console
     Console.WriteLine($"[Request] Protocol: {context.Request.Protocol} | Path: {context.Request.Path}");
     
     // Đảm bảo luôn gửi Header quảng cáo QUIC
@@ -161,7 +179,16 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.UseHangfireDashboard();
 }
+
+
+RecurringJob.AddOrUpdate<IHangfireService>(
+    "dashboard-refresh",
+    x => x.RefreshDashboard(),
+    Cron.Daily(1, 0)
+);
+
 app.UsePathBase("/api");
 
 app.UseHttpsRedirection();
