@@ -3,7 +3,7 @@ using chillhub.Entities.Media;
 using chillhub.Models.Dtos.Requests;
 using chillhub.Models.Dtos.Responses.Search;
 using chillhub.Repositories.Interfaces;
-using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace chillhub.Repositories
 {
@@ -24,6 +24,19 @@ namespace chillhub.Repositories
                 query = query.Where(x => x.Name.Contains(request.Name));
 
             return await GetByCursorAsync(query, request, u => u.Id);
+        }
+
+        public async Task<List<Guid>> GetExistingIdsAsync(List<Guid> categoryIds)
+        {
+            if (categoryIds == null || !categoryIds.Any())
+                return new List<Guid>();
+
+            var uniqueIds = categoryIds.Distinct();
+
+            return await _dbSet
+                .Where(c => uniqueIds.Contains(c.Id))
+                .Select(c => c.Id)
+                .ToListAsync();
         }
     }
 }

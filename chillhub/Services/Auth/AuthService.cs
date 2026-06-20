@@ -1,21 +1,20 @@
-﻿using chillhub.Models.Dtos.Requests;
+﻿using chillhub.Entities.Auth;
+using chillhub.Mapping;
+using chillhub.Models.Dtos.Requests;
+using chillhub.Models.Dtos.Requests.Search;
 using chillhub.Models.Dtos.Responses;
 using chillhub.Models.Dtos.Responses.Search;
+using chillhub.Models.Dtos.Responses.Shared;
 using chillhub.Models.Enums;
+using chillhub.Repositories.Interfaces;
+using chillhub.Services.Interfaces.Auth;
+using chillhub.Utils;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace chillhub.Services.Auth;
-
-using chillhub.Mapping;
-using chillhub.Models.Dtos.Requests.Search;
-using Entities.Auth;
-using Microsoft.EntityFrameworkCore;
-using Models.Dtos.Requests;
-using Models.Dtos.Responses.Shared;
-using Repositories.Interfaces;
-using Services.Interfaces.Auth;
-using Utils;
-
 
 public class AuthService : IAuthService
 {
@@ -48,37 +47,38 @@ public class AuthService : IAuthService
             return ResponseDto.Create(ResponseCatalog.Conflict, "auth.email_existed");
 
         Guid? defaultRoleId = await _authRepo.GetDefaultRoleIdAsync();
-        if(defaultRoleId == null)
+        if (defaultRoleId == null)
         {
-            ResponseDto.Create(ResponseCatalog.NotFound, "auth.user_role_not_exist");
+            return ResponseDto.Create(ResponseCatalog.NotFound, "auth.user_role_not_exist");
         }
 
         LanguageEnum lang = (dto.InitLang == LanguageEnum.En) ? LanguageEnum.En : LanguageEnum.Vi;
 
         Guid userId = Guid.CreateVersion7();
-    
 
         User user = new User
         {
             Id = userId,
             Username = dto.Email,
             FullName = dto.Email,
-            Email= dto.Email,
+            Email = dto.Email,
             Lang = lang,
             CreatedBy = userId,
             UpdatedBy = userId,
-            UserRoles = new List<UserRole> 
-            { 
-                new UserRole { UserId = userId, RoleId = defaultRoleId.Value } 
+            UserRoles = new List<UserRole>
+            {
+                new UserRole { UserId = userId, RoleId = defaultRoleId.Value }
             }
         };
+
         user.Password = _passwordHasher.HashPassword(user, dto.Password);
-    
+
         await _authRepo.AddAsync(user);
         await _authRepo.SaveChangesAsync();
 
         return ResponseDto.Create(ResponseCatalog.Created, "auth.signup_success");
     }
+
     public async Task<IResult> SignInAsync(SignInDto dto)
     {
         UserFullInfo fullInfo = await _authRepo.GetFullUserInfoAsync(dto.Email);
@@ -87,8 +87,8 @@ public class AuthService : IAuthService
             return ResponseDto.Create(ResponseCatalog.Unauthorized, "auth.invalid_credential");
 
         PasswordVerificationResult verificationResult = _passwordHasher.VerifyHashedPassword(
-            fullInfo.User, 
-            fullInfo.User.Password, 
+            fullInfo.User,
+            fullInfo.User.Password,
             dto.Password
         );
 
@@ -97,23 +97,15 @@ public class AuthService : IAuthService
             return ResponseDto.Create(ResponseCatalog.Unauthorized, "auth.invalid_credential");
         }
 
-        var session = new UserSession
-        {
-            UserId = fullInfo.User.Id,
-            Username = fullInfo.User.Username,
-            Email= fullInfo.User.Email,
-            RoleIds = fullInfo.RoleIds,
-            Permissions = fullInfo.Permissions,
-            Lang = fullInfo.User.Lang,
-            IssuedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.Add(_sessionTtl)
-        };
+        UserSession session = await CreateUserSession(fullInfo);
 
-        var (token, jti) = await _tokenUtil.GenerateToken(fullInfo.User.Id, fullInfo.User.Username, fullInfo.User.Lang);
+        var (token, jti) = await _tokenUtil.GenerateToken(fullInfo.User.Id, fullInfo.User.Username,fullInfo.User.Email, fullInfo.User.Lang);
 
         await _sessionRepo.StoreAsync(jti, session, _sessionTtl);
 
-        return ResponseDto.Create(ResponseCatalog.Success, "auth.login_success", token);
+        UserResponse responseData = UserMapping.ToResponse(fullInfo.User);
+
+        return ResponseDto.Create(ResponseCatalog.Success, "auth.login_success", new { Token = token, User = responseData });
     }
 
     public async Task<IResult> SignOutAsync()
@@ -129,11 +121,11 @@ public class AuthService : IAuthService
         await _sessionRepo.DeleteAsync(jti);
         return Results.NoContent();
     }
-         
+
     public async Task<IResult> GetUsersAsync(AuthFilterRequest req)
     {
-        var pagedUsers = await _authRepo.GetUsersAsync(req);
-        CursorResponse<UserResponse> response=  UserMapping.ToCursorResponse(pagedUsers);
+        CursorResponse<User> pagedUsers = await _authRepo.GetUsersAsync(req);
+        CursorResponse<UserResponse> response = UserMapping.ToCursorResponse(pagedUsers);
         return ResponseDto.Create(ResponseCatalog.Success, "auth.users_list", response);
     }
 
@@ -144,29 +136,95 @@ public class AuthService : IAuthService
         {
             return ResponseDto.Create(ResponseCatalog.Unauthorized, "auth.session_not_found");
         }
-        UserFullInfo? user =await _authRepo.GetFullUserInfoAsync(session.Email);
-        if (user == null)
+
+        UserFullInfo? userFullInfo = await _authRepo.GetFullUserInfoAsync(session.Email);
+        if (userFullInfo == null)
         {
             return ResponseDto.Create(ResponseCatalog.Unauthorized, "auth.user_not_found");
         }
-        return ResponseDto.Create(ResponseCatalog.Success, "auth.user_info", user);
+
+        UserResponse responseData = UserMapping.ToResponse(userFullInfo.User);
+
+        return ResponseDto.Create(ResponseCatalog.Success, "auth.user_info", responseData);
     }
 
     public async Task<IResult> GetPermissionAsync()
     {
-        var context = _httpContextAccessor.HttpContext;
 
-        if (context == null)
-        {
-            return ResponseDto.Create(ResponseCatalog.Internal, "system.http_context_not_found");
-        }
-
-        UserSession? session = HttpContextUtil.GetUserSession(context);
+        UserSession? session = HttpContextUtil.GetUserSession(_httpContextAccessor.HttpContext);
         if (session == null)
         {
             return ResponseDto.Create(ResponseCatalog.Unauthorized, "auth.session_not_found");
         }
 
         return ResponseDto.Create(ResponseCatalog.Success, "auth.session_info", session.Permissions);
+    }
+
+    public async Task<IResult> RefreshTokenAsync(RefreshTokenRequest request)
+    {
+
+        var oldJwtToken = request.AccessToken;
+
+        // 1. Xác thực và giải mã JWT cũ (Tắt check Expire, nhưng bắt buộc check Chữ ký số)
+        var principal = _tokenUtil.GetPrincipalFromExpiredToken(oldJwtToken);
+        if (principal == null)
+        {
+            return ResponseDto.Create(ResponseCatalog.Unauthorized, "auth.invalid_signature");
+        }
+
+        // 3. Lấy JTI và Refresh Token từ Payload của JWT
+        var oldJti = principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+        var refreshTokenFromPayload = principal.FindFirst("refresh_token")?.Value;
+        var email = principal.FindFirst(ClaimTypes.Email)?.Value; 
+
+        if (string.IsNullOrEmpty(oldJti) || string.IsNullOrEmpty(refreshTokenFromPayload))
+        {
+            return ResponseDto.Create(ResponseCatalog.Unauthorized, "auth.invalid_payload");
+        }
+
+        // 4. KIỂM TRA BẢO MẬT: Đối chiếu Refresh Token Client gửi với Refresh Token trong Payload
+        // Nếu kẻ gian ăn cắp được JWT cũ nhưng không biết Refresh Token thực sự, chúng sẽ bị chặn ở đây.
+        if (request.RefreshToken != refreshTokenFromPayload)
+        {
+            return ResponseDto.Create(ResponseCatalog.Unauthorized, "auth.refresh_token_mismatch");
+        }
+
+        // 5. Xóa session cũ theo jti (trường hợp session chưa expire)
+        await _sessionRepo.DeleteAsync($"session:{oldJti}");
+
+        // Lấy thông tin user mới nhất từ DB
+        UserFullInfo fullInfo = await _authRepo.GetFullUserInfoAsync(email);
+        if (fullInfo == null) return ResponseDto.Create(ResponseCatalog.Unauthorized, "auth.user_not_found");
+
+        // 6. Cấp phát lại jwt và session mới
+        var newRefreshToken = _tokenUtil.GenerateRefreshToken();
+
+        var (newJwt, newJti) = await _tokenUtil.GenerateToken(fullInfo.User.Id, fullInfo.User.Username,fullInfo.User.Email, fullInfo.User.Lang);
+
+        var newSession = await CreateUserSession(fullInfo);
+
+        // Lưu session mới duy nhất vào Redis
+        await _sessionRepo.StoreAsync($"session:{newJti}", newSession, _sessionTtl);
+
+        return ResponseDto.Create(ResponseCatalog.Success, "auth.refresh_success", new
+        {
+            Token = newJwt,
+            RefreshToken = newRefreshToken
+        });
+    }
+
+    public async Task<UserSession> CreateUserSession(UserFullInfo fullInfo)
+    {
+        return new UserSession
+        {
+            UserId = fullInfo.User.Id,
+            Username = fullInfo.User.Username,
+            Email = fullInfo.User.Email,
+            RoleIds = fullInfo.RoleIds,
+            Permissions = fullInfo.Permissions,
+            Lang = fullInfo.User.Lang,
+            IssuedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.Add(_sessionTtl)
+        };
     }
 }

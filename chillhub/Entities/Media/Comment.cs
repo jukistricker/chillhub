@@ -6,5 +6,6 @@ public class Comment: BaseEntity
     public Guid UserId { get; set; }
     public long LikeCount { get; set; }
     public long DislikeCount { get; set; }
-    public Guid ReferenceCommentId { get; set; }
+    public Guid EntityId { get; set; }
+    public Guid? ReferenceCommentId { get; set; }
 }

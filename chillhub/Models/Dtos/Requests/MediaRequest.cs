@@ -9,6 +9,7 @@ public class MediaCreateRequest
     public string? Description { get; set; }
     public string? Thumbnail { get; set; }
     public int Duration { get; set; }
+    public Guid FolderId { get; set; }
     public Guid UserId { get; set; }
     public MediaType Type { get; set; }
     // Nhận vào mảng ID của Category
@@ -25,7 +26,8 @@ public class MediaUpdateRequest
 
 public class MediaFilterRequest : CursorRequest
 {
-    public string? Title { get; set; }
+    public Guid? Id { get; set; }
+    public Guid? CategoryId { get; set; }
     public Guid? UserId { get; set; }
     public MediaType? Type { get; set; }
 }

@@ -35,6 +35,7 @@ public static class UserMapping
         };
     }
 
+
     public static CursorResponse<UserResponse> ToCursorResponse(CursorResponse<User> source)
     {
         var targetItems = new List<UserResponse>(source.Items.Count);

@@ -21,6 +21,8 @@ public class AppDbContext : DbContext
     public DbSet<PermissionGroup> PermissionGroups => Set<PermissionGroup>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Media> Medias => Set<Media>();
+    public DbSet<MediaCategory> MediaCategories { get; set; }
+    public DbSet<MediaHistory> MediaHistories { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

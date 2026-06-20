@@ -1,11 +1,11 @@
 ﻿using chillhub.Models.Dtos.Requests;
 using chillhub.Models.Dtos.Responses.Shared;
 using chillhub.Repositories.Interfaces;
-using chillhub.Services.Interfaces;
+using chillhub.Services.Interfaces.Medias;
 using chillhub.Utils;
 using Microsoft.AspNetCore.Http;
 
-namespace chillhub.Services
+namespace chillhub.Services.Medias
 {
     public class CategoryService : ICategoryService
     {

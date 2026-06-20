@@ -113,4 +113,14 @@ public class AuthRepository : Repository<User>, IAuthRepository
         return await GetByCursorAsync(query, req, u => u.Id);
     }
 
+    public async Task<HashSet<Guid>> GetValidUserIds(IEnumerable<Guid> userIds)
+    {
+        List<Guid> list = await _dbSet
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => u.Id)
+            .ToListAsync();
+
+        return new HashSet<Guid>(list);
+    }
+
 }

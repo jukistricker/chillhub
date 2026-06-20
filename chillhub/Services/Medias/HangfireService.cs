@@ -1,8 +1,8 @@
 ﻿using chillhub.Contexts;
-using chillhub.Services.Interfaces;
+using chillhub.Services.Interfaces.Medias;
 using Microsoft.EntityFrameworkCore;
 
-namespace chillhub.Services
+namespace chillhub.Services.Medias
 {
     public class HangfireService: IHangfireService
     {

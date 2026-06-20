@@ -1,7 +1,7 @@
 ﻿using chillhub.Models.Dtos.Requests;
 using Microsoft.AspNetCore.Http;
 
-namespace chillhub.Services.Interfaces;
+namespace chillhub.Services.Interfaces.Medias;
 
 public interface ICategoryService
 {

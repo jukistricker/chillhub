@@ -4,22 +4,25 @@ using chillhub.Middlewares;
 using chillhub.Models.Dtos.Responses.Shared;
 using chillhub.Repositories;
 using chillhub.Repositories.Interfaces;
-using chillhub.Services;
 using chillhub.Services.Auth;
-using chillhub.Services.Interfaces;
 using chillhub.Services.Interfaces.Auth;
+using chillhub.Services.Interfaces.Medias;
 using chillhub.Services.Interfaces.Rbac;
+using chillhub.Services.Medias;
 using chillhub.Services.Rbac;
 using chillhub.Utils;
 using Hangfire;
 using Hangfire.PostgreSql;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Prometheus;
 using StackExchange.Redis;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -121,7 +124,7 @@ builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IMediaCategoryRepository, MediaCategoryRepository>();
 builder.Services.AddScoped<IMediaRepository, MediaRepository>();
-
+builder.Services.AddScoped<IMediaHistoryRepository, MediaHistoryRepository>();
 
 
 // Đăng ký Service
@@ -131,11 +134,34 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IRbacService, RbacService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
+builder.Services.AddScoped<IMediaHistoryService, MediaHistoryService>();
 
 
 //Đăng ký các Unstatic Util
 builder.Services.AddSingleton<TokenUtil>();
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],    
+        ValidAudience = builder.Configuration["Jwt:Audience"], 
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("Missing JWT Key"))
+        )
+    };
+});
 
 builder.Services.AddAuthorization();
 
@@ -153,6 +179,12 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+app.UsePathBase("/api");
+
+app.UseHttpsRedirection();
+
+app.UseGlobalApiErrorHandling(app.Environment);
 
 app.UseRouting();
 
@@ -172,6 +204,10 @@ app.Use(async (context, next) =>
     await next();
 });
 
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseMiddleware<RolePermissionMiddleware>();
+
 var accessor = app.Services.GetRequiredService<IHttpContextAccessor>();
 
 // Configure the HTTP request pipeline.
@@ -188,19 +224,6 @@ RecurringJob.AddOrUpdate<IHangfireService>(
     x => x.RefreshDashboard(),
     Cron.Daily(1, 0)
 );
-
-app.UsePathBase("/api");
-
-app.UseHttpsRedirection();
-
-app.UseGlobalApiErrorHandling(app.Environment);
-
-app.UseRouting();
-
-app.UseAuthentication(); 
-app.UseAuthorization();
-
-app.UseMiddleware<RolePermissionMiddleware>();
 
 app.MapControllers();
 

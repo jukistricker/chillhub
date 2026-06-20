@@ -1,6 +1,6 @@
 ﻿using chillhub.Models.Dtos.Requests;
 using chillhub.Models.Dtos.Requests.Search;
-using chillhub.Services.Interfaces;
+using chillhub.Services.Interfaces.Medias;
 using Microsoft.AspNetCore.Mvc;
 
 namespace chillhub.Controllers

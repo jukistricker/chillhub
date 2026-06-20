@@ -1,5 +1,6 @@
-﻿using chillhub.Models.Dtos.Requests;
-using chillhub.Services.Interfaces;
+﻿using chillhub.Attributes;
+using chillhub.Models.Dtos.Requests;
+using chillhub.Services.Interfaces.Medias;
 using Microsoft.AspNetCore.Mvc;
 
 namespace chillhub.Controllers;
@@ -16,12 +17,14 @@ public class CategoriesController : ControllerBase
     }
 
     [HttpPost]
+    [RequiredPermission("media.create_category")]
     public async Task<IResult> CreateAsync([FromBody] CategorySaveRequest request)
     {
         return await _categoryService.CreateCategoryAsync(request);
     }
 
     [HttpPut("{id:guid}")]
+    [RequiredPermission("media.update_category")]
     public async Task<IResult> UpdateAsync(Guid id, [FromBody] CategorySaveRequest request)
     {
         // Đảm bảo Id từ URL được gán vào request để service xử lý chính xác

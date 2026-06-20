@@ -47,7 +47,12 @@ public static class DataSeeder
             new() { Id = Guid.CreateVersion7(), Code = "rbac.search_roles", Name = "Search Roles", PermissionGroupId = RbacGroupId , CreatedAt = DateTimeOffset.UtcNow, CreatedBy = AdminUserId },
             new() { Id = Guid.CreateVersion7(), Code = "rbac.save_permission", Name = "Save Permissions", PermissionGroupId = RbacGroupId , CreatedAt = DateTimeOffset.UtcNow, CreatedBy = AdminUserId},
             new() { Id = Guid.CreateVersion7(), Code = "rbac.search_permissions", Name = "Search Permissions", PermissionGroupId = RbacGroupId , CreatedAt = DateTimeOffset.UtcNow, CreatedBy = AdminUserId},
-            new() { Id = Guid.CreateVersion7(), Code = "rbac.assign_role", Name = "Assign Roles", PermissionGroupId = RbacGroupId , CreatedAt = DateTimeOffset.UtcNow, CreatedBy = AdminUserId}
+            new() { Id = Guid.CreateVersion7(), Code = "rbac.assign_role", Name = "Assign Roles", PermissionGroupId = RbacGroupId , CreatedAt = DateTimeOffset.UtcNow, CreatedBy = AdminUserId},
+            new() { Id = Guid.CreateVersion7(), Code = "media.create_category", Name = "Create Category", PermissionGroupId = RbacGroupId , CreatedAt = DateTimeOffset.UtcNow, CreatedBy = AdminUserId},
+            new() { Id = Guid.CreateVersion7(), Code = "media.media.update_category", Name = "Update Category", PermissionGroupId = RbacGroupId , CreatedAt = DateTimeOffset.UtcNow, CreatedBy = AdminUserId}
+
+
+
         };
 
         modelBuilder.Entity<Permission>().HasData(permissions);

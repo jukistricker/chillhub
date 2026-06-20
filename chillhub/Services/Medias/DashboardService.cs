@@ -1,9 +1,9 @@
 ﻿using chillhub.Models.Dtos.Requests.Search;
 using chillhub.Models.Dtos.Responses.Shared;
 using chillhub.Repositories.Interfaces;
-using chillhub.Services.Interfaces;
+using chillhub.Services.Interfaces.Medias;
 
-namespace chillhub.Services
+namespace chillhub.Services.Medias
 {
     public class DashboardService: IDashboardService
     {

@@ -8,5 +8,6 @@ namespace chillhub.Repositories.Interfaces
     {
         Task<CursorResponse<Media>> GetMediasAsync(MediaFilterRequest request);
         Task<List<Media>> GetByIdsAsync(IEnumerable<Guid> ids);
+        Task<HashSet<Guid>> GetValidMediaIds(IEnumerable<Guid> mediaIds);
     }
 }

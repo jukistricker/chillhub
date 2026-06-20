@@ -18,4 +18,5 @@ public interface IAuthRepository : IRepository<User>
     Task<UserFullInfo?> GetFullUserInfoAsync(string email);
     Task AddUserRolesAsync(IEnumerable<UserRole> roles);
     Task<CursorResponse<User>> GetUsersAsync(AuthFilterRequest req);
+    Task<HashSet<Guid>> GetValidUserIds(IEnumerable<Guid> userIds);
 }

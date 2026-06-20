@@ -1,8 +1,9 @@
-﻿using System.Security.Claims;
-using System.Text;
-using chillhub.Models.Enums;
+﻿using chillhub.Models.Enums;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace chillhub.Utils;
 
@@ -36,7 +37,7 @@ public sealed class TokenUtil
         };
     }
 
-    public Task<(string token, string jti)> GenerateToken(Guid userId, string username , LanguageEnum lang)
+    public Task<(string token, string jti)> GenerateToken(Guid userId, string username , string email, LanguageEnum lang)
     {
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
@@ -53,7 +54,9 @@ public sealed class TokenUtil
             [JwtRegisteredClaimNames.Sub] = userId.ToString(),      // UserId
             [JwtRegisteredClaimNames.Jti] = jti,
             [JwtRegisteredClaimNames.UniqueName] = username,        // Username
-            ["lang"] = (int)lang                                  // Ngôn ngữ ưu tiên
+            [JwtRegisteredClaimNames.Email] = email,
+            ["lang"] = (int)lang,                                  // Ngôn ngữ ưu tiên
+            ["refresh_token"] = GenerateRefreshToken()
         };
 
         var descriptor = new SecurityTokenDescriptor
@@ -90,6 +93,37 @@ public sealed class TokenUtil
             Console.WriteLine($"Token Invalid: {result.Exception?.Message}");
             return null;
         }
+
+        return new ClaimsPrincipal(result.ClaimsIdentity);
+    }
+
+    public string GenerateRefreshToken()
+    {
+        var randomNumber = new byte[64];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(randomNumber);
+        return Convert.ToBase64String(randomNumber);
+    }
+
+    public ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
+    {
+        var tokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = _issuer,   
+            ValidAudience = _audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey)),
+
+            ValidateLifetime = false // CHỈ TẮT check hết hạn
+        };
+
+        var tokenHandler = new JsonWebTokenHandler();
+        var result = tokenHandler.ValidateToken(token, tokenValidationParameters);
+
+        // Nếu chữ ký sai, hoặc token giả mạo -> trả về null ngay lập tức
+        if (!result.IsValid) return null;
 
         return new ClaimsPrincipal(result.ClaimsIdentity);
     }

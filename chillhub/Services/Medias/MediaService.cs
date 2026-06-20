@@ -1,26 +1,40 @@
 ﻿using chillhub.Entities.Media;
+using chillhub.Mapping;
 using chillhub.Models.Dtos.Requests;
+using chillhub.Models.Dtos.Responses.Search;
 using chillhub.Models.Dtos.Responses.Shared;
+using chillhub.Models.Enums;
 using chillhub.Repositories.Interfaces;
-using chillhub.Services.Interfaces;
+using chillhub.Services.Interfaces.Medias;
 
-namespace chillhub.Services
+namespace chillhub.Services.Medias
 {
     public class MediaService : IMediaService
     {
         private readonly IMediaRepository _mediaRepo;
         private readonly IMediaCategoryRepository _mediaCategoryRepo;
+        private readonly ICategoryRepository _categoryRepository;
 
-        public MediaService(IMediaRepository mediaRepo, IMediaCategoryRepository mediaCategoryRepo)
+        public MediaService(IMediaRepository mediaRepo, IMediaCategoryRepository mediaCategoryRepo, ICategoryRepository categoryRepository)
         {
             _mediaRepo = mediaRepo;
             _mediaCategoryRepo = mediaCategoryRepo;
+            _categoryRepository = categoryRepository;
         }
 
         public async Task<IResult> CreateMediasBatchAsync(List<MediaCreateRequest> requests)
         {
             if (requests == null || !requests.Any())
                 return ResponseDto.Create(ResponseCatalog.BadRequest, "media.batch_empty");
+
+            var requestCategoryIds = requests
+                .Where(r => r.CategoryIds != null)
+                .SelectMany(r => r.CategoryIds)
+                .Distinct()
+                .ToList();
+
+            var existingCategoryIds = await _categoryRepository.GetExistingIdsAsync(requestCategoryIds);
+            var existingCategorySet = new HashSet<Guid>(existingCategoryIds);
 
             var newMedias = new List<Media>();
             var newMediaCategories = new List<MediaCategory>();
@@ -29,6 +43,14 @@ namespace chillhub.Services
             {
                 var mediaId = Guid.NewGuid();
 
+                // Lọc ra các CategoryId hợp lệ
+                var validCategoryIds = req.CategoryIds?
+                    .Where(id => existingCategorySet.Contains(id))
+                    .ToList() ?? new List<Guid>();
+
+                // Xác định xem có category nào bị loại bỏ không
+                bool hasInvalidCategory = req.CategoryIds != null &&
+                                          validCategoryIds.Count < req.CategoryIds.Count;
                 var media = new Media
                 {
                     Id = mediaId,
@@ -38,23 +60,23 @@ namespace chillhub.Services
                     Duration = req.Duration,
                     UserId = req.UserId,
                     Type = req.Type,
-                    LikeCount = 0, 
+                    FolderId= req.FolderId,
+                    LikeCount = 0,
                     DislikeCount = 0,
                     OverallRating = null,
-
+                    ViewCount=0,
+                    MediaStatus = hasInvalidCategory ? MediaStatus.Fail : MediaStatus.Success,
+                    CreatedBy = req.UserId
                 };
                 newMedias.Add(media);
 
-                if (req.CategoryIds != null && req.CategoryIds.Any())
+                foreach (var categoryId in validCategoryIds)
                 {
-                    foreach (var categoryId in req.CategoryIds)
+                    newMediaCategories.Add(new MediaCategory
                     {
-                        newMediaCategories.Add(new MediaCategory
-                        {
-                            MediaId = mediaId,
-                            CategoryId = categoryId
-                        });
-                    }
+                        MediaId = mediaId,
+                        CategoryId = categoryId
+                    });
                 }
             }
 
@@ -67,9 +89,13 @@ namespace chillhub.Services
 
             await _mediaRepo.SaveChangesAsync();
 
-            return ResponseDto.Create(ResponseCatalog.Created, "media.batch.created", newMedias);
+            return ResponseDto.Create(ResponseCatalog.Created, "media.batch_processed", new
+            {
+                Total = newMedias.Count,
+                SuccessCount = newMedias.Count(m => m.MediaStatus == MediaStatus.Success),
+                FailedCount = newMedias.Count(m => m.MediaStatus == MediaStatus.Fail)
+            });
         }
-
         public async Task<IResult> UpdateMediasBatchAsync(List<MediaUpdateRequest> requests)
         {
             if (requests == null || !requests.Any())
@@ -105,8 +131,8 @@ namespace chillhub.Services
 
         public async Task<IResult> SearchMediasAsync(MediaFilterRequest request)
         {
-            var pagedResult = await _mediaRepo.GetMediasAsync(request);
-            return ResponseDto.Create(ResponseCatalog.Success, "media.list", pagedResult);
+            CursorResponse<Media> pagedResult = await _mediaRepo.GetMediasAsync(request);
+            return ResponseDto.Create(ResponseCatalog.Success, "media.list", MediaMapping.ToResponseList(pagedResult));
         }
     }
 }

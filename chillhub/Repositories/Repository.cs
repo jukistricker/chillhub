@@ -32,34 +32,29 @@ public class Repository<T> : IRepository<T> where T : class
         return await _dbSet.AnyAsync(predicate);
     }
 
-    public async Task<CursorResponse<T>> 
-        GetByCursorAsync<TKey>(
-        IQueryable<T> query,
+    public async Task<CursorResponse<TModel>> GetByCursorAsync<TModel, TKey>(
+        IQueryable<TModel> query,
         CursorRequest request,
-        Expression<Func<T, TKey>> idSelector) where TKey : IComparable
+        Expression<Func<TModel, TKey>> idSelector
+    ) where TKey : IComparable
     {
         var getIdFunc = idSelector.Compile();
 
-        // 1. Xử lý điều kiện lọc ranh giới Cursor (Id < Mốc hoặc Id > Mốc)
+        // 1. Xử lý điều kiện lọc ranh giới Cursor
         if (!string.IsNullOrEmpty(request.Cursor))
         {
             var targetType = typeof(TKey);
 
-            // Ép kiểu chuỗi Cursor nhận từ Client về đúng kiểu dữ liệu của trường mốc (int, long, Guid)
             TKey parsedCursor = (TKey)(targetType == typeof(Guid)
                 ? (object)Guid.Parse(request.Cursor)
                 : Convert.ChangeType(request.Cursor, targetType));
 
-            // Định nghĩa toán tử so sánh dựa theo chiều sắp xếp sắp xếp
-            // Mới nhất lên đầu (IsDescending = true): Lấy các bản ghi cũ hơn mốc (Id < parsedCursor)
-            // Cũ nhất lên đầu (IsDescending = false): Lấy các bản ghi mới hơn mốc (Id > parsedCursor)
             Func<Expression, Expression, BinaryExpression> comparisonOp = request.IsDescending
                 ? Expression.LessThan
                 : Expression.GreaterThan;
 
-            // Xây dựng câu lệnh Expression động: x => x.Id < parsedCursor
             var binaryExpression = comparisonOp(idSelector.Body, Expression.Constant(parsedCursor));
-            var lambdaCriteria = Expression.Lambda<Func<T, bool>>(binaryExpression, idSelector.Parameters);
+            var lambdaCriteria = Expression.Lambda<Func<TModel, bool>>(binaryExpression, idSelector.Parameters);
 
             query = query.Where(lambdaCriteria);
         }
@@ -69,18 +64,17 @@ public class Repository<T> : IRepository<T> where T : class
             ? query.OrderByDescending(idSelector)
             : query.OrderBy(idSelector);
 
-        // 3. Thực thi truy vấn lấy dư 1 bản ghi (Take PageSize + 1) để kiểm tra HasNextPage
+        // 3. Thực thi truy vấn lấy dư 1 bản ghi
         var items = await query.Take(request.PageSize + 1).ToListAsync();
         var hasNextPage = items.Count > request.PageSize;
 
         if (hasNextPage)
         {
-            // Bỏ bản ghi thừa đi sau khi đã xác nhận có trang kế tiếp
             items.RemoveAt(items.Count - 1);
         }
 
         // 4. Trả về kết quả phân trang
-        return new CursorResponse<T>
+        return new CursorResponse<TModel>
         {
             Items = items,
             NextCursor = hasNextPage && items.Count > 0 ? getIdFunc(items.Last()).ToString() : null,

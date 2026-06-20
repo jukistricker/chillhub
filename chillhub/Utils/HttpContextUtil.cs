@@ -6,10 +6,15 @@ namespace chillhub.Utils;
 
 public static class HttpContextUtil
 {
-    public static string? GetUserId(ClaimsPrincipal? user)
+    public static Guid? GetUserId(ClaimsPrincipal? user)
     {
-        return user?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+        string? userId= user?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
                ?? user?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userId == null)
+        {
+            return Guid.Empty;
+        }
+        return Guid.Parse(userId);
     }
 
     public static string? GetBearerToken(HttpContext context)
