@@ -72,7 +72,9 @@ namespace chillhub.Services.Medias
                     OverallRating = null,
                     ViewCount=0,
                     MediaStatus = hasInvalidCategory ? MediaStatus.Fail : MediaStatus.Success,
-                    CreatedBy = req.UserId
+                    CreatedBy = req.UserId,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    UpdatedAt = DateTimeOffset.UtcNow
                 };
                 newMedias.Add(media);
 

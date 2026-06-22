@@ -32,5 +32,12 @@ namespace chillhub.Controllers
         {
             return await _mediaService.SearchMediasAsync(request);
         }
+
+        [HttpPost("reaction-batch")]
+        public async Task<IResult> BatchReaction([FromBody] List<MediaReactionRequest> requests)
+        {
+            // Gọi trực tiếp xuống hàm Service đã tối ưu Bulk Extensions của bạn
+            return await _mediaService.BatchReactionAsync(requests);
+        }
     }
 }

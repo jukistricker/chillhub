@@ -8,5 +8,6 @@ namespace chillhub.Services.Interfaces.Medias
         Task<IResult> CreateMediasBatchAsync(List<MediaCreateRequest> requests);
         Task<IResult> UpdateMediasBatchAsync(List<MediaUpdateRequest> requests);
         Task<IResult> SearchMediasAsync(MediaFilterRequest request);
+        Task<IResult> BatchReactionAsync(List<MediaReactionRequest> requests);
     }
 }
