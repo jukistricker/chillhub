@@ -31,8 +31,8 @@ namespace chillhub.Repositories
                 Username = h.User != null ? h.User.Username : "Unknown",
                 FullName = h.User != null ? h.User.FullName : "Unknown",
                 UserId = h.UserId,
-                MediaId = h.MediaId
-
+                MediaId = h.MediaId,
+                AvatarUrl = h.User.AvatarUrl
             });
 
             return await GetByCursorAsync(projection, request, h => h.Id);

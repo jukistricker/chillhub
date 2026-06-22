@@ -1,6 +1,7 @@
 ﻿using chillhub.Models.Dtos.Requests.Search;
 using chillhub.Models.Dtos.Responses.Search;
 using chillhub.Repositories.Interfaces;
+using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
@@ -97,13 +98,37 @@ public class Repository<T> : IRepository<T> where T : class
         _dbSet.Update(entity);
     }
 
-    public void Delete(T entity)
+    public void Remove(T entity)
     {
         _dbSet.Remove(entity);
+    }
+
+    public void RemoveRange(IEnumerable<T> entities)
+    {
+        _dbSet.RemoveRange(entities);
     }
 
     public async Task<bool> SaveChangesAsync()
     {
         return await _context.SaveChangesAsync() > 0;
+    }
+
+    public async Task BulkInsertOrUpdateAsync(List<T> entities, BulkConfig bulkConfig)
+    {
+        if (entities == null || !entities.Any()) return;
+
+        await _context.BulkInsertOrUpdateAsync(entities, bulkConfig);
+    }
+
+    public async Task BulkUpdateAsync(List<T> entities, BulkConfig? bulkConfig = null)
+    {
+        if (entities == null || !entities.Any()) return;
+        await _context.BulkUpdateAsync(entities, bulkConfig);
+    }
+
+    public async Task BulkDeleteAsync(List<T> entities, BulkConfig? bulkConfig = null)
+    {
+        if (entities == null || !entities.Any()) return;
+        await _context.BulkDeleteAsync(entities, bulkConfig);
     }
 }

@@ -10,6 +10,7 @@ namespace chillhub.Controllers.Auth;
 
 [ApiController]
 [Route("auth")]
+[Authorize]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
@@ -41,6 +42,7 @@ public class AuthController : ControllerBase
     }
     
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IResult> GetAll([FromQuery] AuthFilterRequest req)
     {
         return await _authService.GetUsersAsync(req);
@@ -59,5 +61,12 @@ public class AuthController : ControllerBase
     public async Task<IResult> GetPersonalInfo()
     {
         return await _authService.GetPersonalInfo();
+    }
+
+    [HttpPost("refresh-token")]
+    [AllowAnonymous]
+    public async Task<IResult> RefreshTokenAsync(RefreshTokenRequest request)
+    {
+        return await _authService.RefreshTokenAsync(request);
     }
 }

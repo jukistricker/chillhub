@@ -99,13 +99,13 @@ public class AuthService : IAuthService
 
         UserSession session = await CreateUserSession(fullInfo);
 
-        var (token, jti) = await _tokenUtil.GenerateToken(fullInfo.User.Id, fullInfo.User.Username,fullInfo.User.Email, fullInfo.User.Lang);
+        var (token, jti, refreshToken) = await _tokenUtil.GenerateToken(fullInfo.User.Id, fullInfo.User.Username,fullInfo.User.Email, fullInfo.User.Lang);
 
         await _sessionRepo.StoreAsync(jti, session, _sessionTtl);
 
         UserResponse responseData = UserMapping.ToResponse(fullInfo.User);
 
-        return ResponseDto.Create(ResponseCatalog.Success, "auth.login_success", new { Token = token, User = responseData });
+        return ResponseDto.Create(ResponseCatalog.Success, "auth.login_success", new { Token = token, User = responseData, RefreshToken= refreshToken  });
     }
 
     public async Task<IResult> SignOutAsync()
@@ -175,7 +175,11 @@ public class AuthService : IAuthService
         // 3. Lấy JTI và Refresh Token từ Payload của JWT
         var oldJti = principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
         var refreshTokenFromPayload = principal.FindFirst("refresh_token")?.Value;
-        var email = principal.FindFirst(ClaimTypes.Email)?.Value; 
+        var email = principal?.FindFirstValue("email");
+        if (email == null)
+        {
+            return ResponseDto.Create(ResponseCatalog.Unauthorized, "auth.email_not_found");
+        }
 
         if (string.IsNullOrEmpty(oldJti) || string.IsNullOrEmpty(refreshTokenFromPayload))
         {
@@ -190,26 +194,27 @@ public class AuthService : IAuthService
         }
 
         // 5. Xóa session cũ theo jti (trường hợp session chưa expire)
-        await _sessionRepo.DeleteAsync($"session:{oldJti}");
+        await _sessionRepo.DeleteAsync(oldJti);
 
         // Lấy thông tin user mới nhất từ DB
         UserFullInfo fullInfo = await _authRepo.GetFullUserInfoAsync(email);
         if (fullInfo == null) return ResponseDto.Create(ResponseCatalog.Unauthorized, "auth.user_not_found");
 
-        // 6. Cấp phát lại jwt và session mới
-        var newRefreshToken = _tokenUtil.GenerateRefreshToken();
 
-        var (newJwt, newJti) = await _tokenUtil.GenerateToken(fullInfo.User.Id, fullInfo.User.Username,fullInfo.User.Email, fullInfo.User.Lang);
+        var (newJwt, newJti, refreshToken) = await _tokenUtil.GenerateToken(fullInfo.User.Id, 
+            fullInfo.User.Username,
+            fullInfo.User.Email, 
+            fullInfo.User.Lang,
+            request.RefreshToken);
 
         var newSession = await CreateUserSession(fullInfo);
 
-        // Lưu session mới duy nhất vào Redis
-        await _sessionRepo.StoreAsync($"session:{newJti}", newSession, _sessionTtl);
+        await _sessionRepo.StoreAsync(newJti, newSession, _sessionTtl);
 
         return ResponseDto.Create(ResponseCatalog.Success, "auth.refresh_success", new
         {
             Token = newJwt,
-            RefreshToken = newRefreshToken
+            RefreshToken = refreshToken
         });
     }
 
@@ -223,8 +228,8 @@ public class AuthService : IAuthService
             RoleIds = fullInfo.RoleIds,
             Permissions = fullInfo.Permissions,
             Lang = fullInfo.User.Lang,
-            IssuedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.Add(_sessionTtl)
+            IssuedAt = DateTimeOffset.UtcNow,
+            ExpiresAt = DateTimeOffset.UtcNow.Add(_sessionTtl)
         };
     }
 }

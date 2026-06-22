@@ -2,6 +2,7 @@
 
 using chillhub.Models.Dtos.Requests.Search;
 using chillhub.Models.Dtos.Responses.Search;
+using EFCore.BulkExtensions;
 using System.Linq.Expressions;
 
 public interface IRepository<T> where T : class
@@ -17,6 +18,11 @@ public interface IRepository<T> where T : class
     Task AddAsync(T entity);
     Task AddRangeAsync(IEnumerable<T> entities);
     void Update(T entity);
-    void Delete(T entity);
+    void Remove(T entity);
+    void RemoveRange(IEnumerable<T> entities);
     Task<bool> SaveChangesAsync();
+    //Bulk Extension
+    Task BulkInsertOrUpdateAsync(List<T> entities, BulkConfig bulkConfig);
+    Task BulkUpdateAsync(List<T> entities, BulkConfig? bulkConfig = null);
+    Task BulkDeleteAsync(List<T> entities, BulkConfig? bulkConfig = null);
 }

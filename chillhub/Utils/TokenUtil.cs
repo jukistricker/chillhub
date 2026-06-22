@@ -37,7 +37,11 @@ public sealed class TokenUtil
         };
     }
 
-    public Task<(string token, string jti)> GenerateToken(Guid userId, string username , string email, LanguageEnum lang)
+    public Task<(string token, string jti, string refreshToken)> GenerateToken(Guid userId, 
+        string username , 
+        string email, 
+        LanguageEnum lang,
+        string? refreshToken = null)
     {
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
@@ -48,6 +52,9 @@ public sealed class TokenUtil
         }
         
         string jti = Guid.NewGuid().ToString();
+        string finalRefreshToken = string.IsNullOrEmpty(refreshToken)
+            ? GenerateRefreshToken()
+            : refreshToken;
 
         var claims = new Dictionary<string, object>
         {
@@ -56,7 +63,7 @@ public sealed class TokenUtil
             [JwtRegisteredClaimNames.UniqueName] = username,        // Username
             [JwtRegisteredClaimNames.Email] = email,
             ["lang"] = (int)lang,                                  // Ngôn ngữ ưu tiên
-            ["refresh_token"] = GenerateRefreshToken()
+            ["refresh_token"] = finalRefreshToken
         };
 
         var descriptor = new SecurityTokenDescriptor
@@ -64,12 +71,12 @@ public sealed class TokenUtil
             Issuer = _issuer,
             Audience = _audience,
             Claims = claims,
-            Expires = DateTime.UtcNow.AddMinutes(_expireMinutes),
+            Expires = DateTimeOffset.UtcNow.AddMinutes(_expireMinutes).UtcDateTime,
             SigningCredentials = credentials
         };
         
         string token= _handler.CreateToken(descriptor);
-        return Task.FromResult((token, jti));
+        return Task.FromResult((token, jti, finalRefreshToken));
     }
 
     public string? GetJti(string token)

@@ -1,12 +1,14 @@
 ﻿using chillhub.Attributes;
 using chillhub.Models.Dtos.Requests;
 using chillhub.Services.Interfaces.Medias;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace chillhub.Controllers;
 
 [Route("category")]
 [ApiController]
+[Authorize]
 public class CategoriesController : ControllerBase
 {
     private readonly ICategoryService _categoryService;
@@ -33,6 +35,7 @@ public class CategoriesController : ControllerBase
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IResult> SearchAsync([FromQuery] CategoryFilterRequest request)
     {
         return await _categoryService.SearchCategoriesAsync(request);

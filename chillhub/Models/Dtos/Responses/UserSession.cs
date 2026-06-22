@@ -10,6 +10,6 @@ public class UserSession
     public HashSet<Guid> RoleIds { get; set; } = new();
     public HashSet<string> Permissions { get; set; } = new();
     public LanguageEnum Lang { get; set; }
-    public DateTime IssuedAt { get; set; }
-    public DateTime ExpiresAt { get; set; }
+    public DateTimeOffset IssuedAt { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
 }

@@ -16,6 +16,7 @@ using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -23,6 +24,7 @@ using Microsoft.OpenApi.Models;
 using Prometheus;
 using StackExchange.Redis;
 using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -78,6 +80,50 @@ builder.Services.AddHangfire(config =>
 
 builder.Services.AddHangfireServer();
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Policy 1: Dành cho API thông thường - Phân tách theo từng Token
+    options.AddPolicy("GeneralApiPolicy", context =>
+    {
+        // Lấy token từ Header làm chìa khóa định danh (nếu không có thì dùng IP)
+        string partitionKey = context.Request.Headers.Authorization.ToString();
+        if (string.IsNullOrEmpty(partitionKey))
+        {
+            partitionKey = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        }
+
+        // Trả về bộ đếm riêng cho THIẾT BỊ/TOKEN này
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: partitionKey,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10, // Thiết bị này được 600 requests/phút cho API thông thường
+                Window = TimeSpan.FromSeconds(1)
+            });
+    });
+
+    // Policy 2: Dành cho API nhạy cảm - Phân tách theo từng Token
+    options.AddPolicy("StrictApiPolicy", context =>
+    {
+        string partitionKey = context.Request.Headers.Authorization.ToString();
+        if (string.IsNullOrEmpty(partitionKey))
+        {
+            partitionKey = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        }
+
+        // Trả về bộ đếm riêng cho THIẾT BỊ/TOKEN này
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: partitionKey,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5, // Thiết bị này chỉ được 5 requests/phút cho API nhạy cảm
+                Window = TimeSpan.FromMinutes(1)
+            });
+    });
+});
+
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -125,6 +171,9 @@ builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IMediaCategoryRepository, MediaCategoryRepository>();
 builder.Services.AddScoped<IMediaRepository, MediaRepository>();
 builder.Services.AddScoped<IMediaHistoryRepository, MediaHistoryRepository>();
+builder.Services.AddScoped<IMediaReactionRepository, MediaReactionRepository>();
+builder.Services.AddScoped<ISubscriberRepository, SubscriberRepository>();
+
 
 
 // Đăng ký Service
@@ -135,6 +184,7 @@ builder.Services.AddScoped<IRbacService, RbacService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddScoped<IMediaHistoryService, MediaHistoryService>();
+builder.Services.AddScoped<ISubscriberService, SubscriberService>();
 
 
 //Đăng ký các Unstatic Util
@@ -206,6 +256,7 @@ app.Use(async (context, next) =>
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.UseMiddleware<RolePermissionMiddleware>();
 
 var accessor = app.Services.GetRequiredService<IHttpContextAccessor>();

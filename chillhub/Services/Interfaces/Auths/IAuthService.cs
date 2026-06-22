@@ -11,4 +11,5 @@ public interface IAuthService
     Task<IResult> GetUsersAsync(AuthFilterRequest req);
     Task<IResult> GetPermissionAsync();
     Task<IResult> GetPersonalInfo();
+    Task<IResult> RefreshTokenAsync(RefreshTokenRequest request);
 }

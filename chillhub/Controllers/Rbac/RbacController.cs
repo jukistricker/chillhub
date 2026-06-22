@@ -1,12 +1,14 @@
 ﻿using chillhub.Attributes;
 using chillhub.Models.Dtos.Requests;
 using chillhub.Services.Interfaces.Rbac;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace chillhub.Controllers.Rbac;
 
 [ApiController]
 [Route("rbac")]
+[Authorize]
 public class RbacController:ControllerBase
 {
     private readonly IRbacService _rbacService;

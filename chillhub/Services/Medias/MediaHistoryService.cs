@@ -7,7 +7,7 @@ using chillhub.Models.Dtos.Responses.Shared;
 using chillhub.Repositories.Interfaces;
 using chillhub.Services.Interfaces.Medias;
 using chillhub.Utils;
-using Microsoft.EntityFrameworkCore;
+using EFCore.BulkExtensions;
 
 namespace chillhub.Services.Medias
 {
@@ -41,14 +41,14 @@ namespace chillhub.Services.Medias
 
             if (!cleanHistories.Any()) return;
 
-            // 2. Lấy danh sách ID duy nhất
+            // 2. Lấy danh sách ID duy nhất để validate dưới DB
             var userIds = cleanHistories.Select(h => h.UserId!.Value).Distinct().ToList();
             var mediaIds = cleanHistories.Select(h => h.MediaId!.Value).Distinct().ToList();
 
             var validUserIds = await _authRepository.GetValidUserIds(userIds);
             var validMediaIds = await _mediaRepository.GetValidMediaIds(mediaIds);
 
-            // 3. Lọc dữ liệu bằng HashSet.Contains() 
+            // 3. Lọc dữ liệu hợp lệ từ DB
             var validHistories = cleanHistories.Where(h =>
                 validUserIds.Contains(h.UserId!.Value) &&
                 validMediaIds.Contains(h.MediaId!.Value)
@@ -56,23 +56,36 @@ namespace chillhub.Services.Medias
 
             if (validHistories.Any())
             {
-                // 4. CHUYỂN ĐỔI (MAP) TỪ DTO SANG ENTITY
-                var entitiesToSave = validHistories.Select(h => new MediaHistory
+                var now = DateTimeOffset.UtcNow;
+
+                // Nhóm các bản ghi trùng cặp (UserId, MediaId) gửi lên cùng lúc
+                // Chỉ lấy bản ghi cuối cùng (bản ghi mới nhất) để xử lý tiếp
+                var uniqueHistories = validHistories
+                    .GroupBy(h => new { h.UserId, h.MediaId })
+                    .Select(g => g.Last()) 
+                    .ToList();
+
+                var entitiesToSave = uniqueHistories.Select(h => new MediaHistory
                 {
                     Id = h.Id ?? Guid.CreateVersion7(),
 
                     UserId = h.UserId,
                     MediaId = h.MediaId,
                     Progress = h.Progress,
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = now,
                     CreatedBy = h.UserId,
-                    UpdatedBy = h.UserId,
-                    UpdatedAt = DateTime.UtcNow,
+                    UpdatedAt = now,
+                    UpdatedBy = h.UserId
                 }).ToList();
 
-                // 5. Truyền danh sách Entity vào Repository
-                await _mediaHistoryRepository.AddRangeAsync(entitiesToSave);
-                await _mediaHistoryRepository.SaveChangesAsync();
+                await _mediaHistoryRepository.BulkInsertOrUpdateAsync(entitiesToSave, new BulkConfig
+                {
+                    // Chỉ định các cột dùng làm điều kiện để On Conflict (Match dữ liệu cũ)
+                    UpdateByProperties = new List<string> { nameof(MediaHistory.UserId), nameof(MediaHistory.MediaId) },
+
+                    // Loại trừ cột 'CreatedAt' và 'CreatedBy' không cho cập nhật lại khi bị trùng dữ liệu
+                    PropertiesToExcludeOnUpdate = new List<string> { nameof(MediaHistory.CreatedAt), nameof(MediaHistory.CreatedBy) }
+                });
             }
         }
 

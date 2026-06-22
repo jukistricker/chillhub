@@ -21,8 +21,10 @@ public class AppDbContext : DbContext
     public DbSet<PermissionGroup> PermissionGroups => Set<PermissionGroup>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Media> Medias => Set<Media>();
-    public DbSet<MediaCategory> MediaCategories { get; set; }
-    public DbSet<MediaHistory> MediaHistories { get; set; }
+    public DbSet<MediaCategory> MediaCategories  => Set<MediaCategory>();
+    public DbSet<MediaHistory> MediaHistories => Set<MediaHistory>();
+    public DbSet<MediaReaction> MediaReactions => Set<MediaReaction>();
+    public DbSet<Subscriber> Subscribers => Set<Subscriber>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -43,6 +45,17 @@ public class AppDbContext : DbContext
             }
         }
         DataSeeder.Seed(modelBuilder);
+        try
+        {
+            // Ép EF Core chạy thử cơ chế kiểm tra Model xem có gì bất thường không
+            var model = modelBuilder.Model;
+        }
+        catch (Exception ex)
+        {
+            // Đặt một Breakpoint tại dòng này nếu bạn dùng Visual Studio / VS Code để Debug
+            var ghi_nho_loi = ex.Message;
+            throw;
+        }
     }
 
 }
