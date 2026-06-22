@@ -4,6 +4,7 @@ using chillhub.Entities.Media;
 using chillhub.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace chillhub.Contexts;
 
@@ -26,6 +27,12 @@ public class AppDbContext : DbContext
     public DbSet<MediaReaction> MediaReactions => Set<MediaReaction>();
     public DbSet<Subscriber> Subscribers => Set<Subscriber>();
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        base.OnConfiguring(optionsBuilder);
+
+        optionsBuilder.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
+    }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
