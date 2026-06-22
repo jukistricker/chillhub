@@ -270,15 +270,21 @@ if (app.Environment.IsDevelopment())
 }
 
 
-RecurringJob.AddOrUpdate<IHangfireService>(
-    "dashboard-refresh",
-    x => x.RefreshDashboard(),
-    Cron.Daily(1, 0)
-);
-
 app.MapControllers();
 
 app.UseHttpMetrics(); // Theo dõi các yêu cầu HTTP (tùy chọn)
 app.MapMetrics();
+
+using (var scope = app.Services.CreateScope())
+{
+    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+
+    // Sử dụng service-based API thay vì static RecurringJob
+    recurringJobManager.AddOrUpdate<IHangfireService>(
+        "dashboard-refresh",
+        x => x.RefreshDashboard(),
+        Cron.Daily(1, 0)
+    );
+}
 
 app.Run();
