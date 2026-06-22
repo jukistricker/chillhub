@@ -20,7 +20,7 @@ public static class RbacMapping
 
             CreatedAt = permission.CreatedAt,
             CreatedBy = permission.CreatedBy,
-            UpdatedAt = permission.UpdatedAt,
+            UpdatedAt = permission.UpdatedAt.Value,
             UpdatedBy = permission.UpdatedBy
         };
     }
@@ -74,7 +74,7 @@ public static class RbacMapping
         
         CreatedAt = g.CreatedAt,
         CreatedBy = g.CreatedBy,
-        UpdatedAt = g.UpdatedAt,
+        UpdatedAt = g.UpdatedAt.Value,
         UpdatedBy = g.UpdatedBy
     };
 }
