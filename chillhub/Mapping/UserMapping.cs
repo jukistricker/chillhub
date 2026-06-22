@@ -15,7 +15,7 @@ public static class UserMapping
             Id = user.Id,
             CreatedAt = user.CreatedAt,
             CreatedBy = user.CreatedBy,
-            UpdatedAt = user.UpdatedAt,
+            UpdatedAt = user.UpdatedAt.Value,
             UpdatedBy = user.UpdatedBy,
 
             Username = user.Username,
