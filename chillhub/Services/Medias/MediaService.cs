@@ -4,9 +4,14 @@ using chillhub.Models.Dtos.Requests;
 using chillhub.Models.Dtos.Responses.Search;
 using chillhub.Models.Dtos.Responses.Shared;
 using chillhub.Models.Enums;
+using chillhub.Models.ThirdParties;
 using chillhub.Repositories.Interfaces;
 using chillhub.Services.Interfaces.Medias;
+using chillhub.Utils;
+using Confluent.Kafka;
 using EFCore.BulkExtensions;
+using Microsoft.Extensions.Options;
+using System.Text.Json;
 
 namespace chillhub.Services.Medias
 {
@@ -16,16 +21,25 @@ namespace chillhub.Services.Medias
         private readonly IMediaCategoryRepository _mediaCategoryRepo;
         private readonly ICategoryRepository _categoryRepository;
         private readonly IMediaReactionRepository _mediaReactionRepository;
+        private readonly IProducer<string, string> _kafkaProducer;
+        private readonly string _kafkaTopic;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public MediaService(IMediaRepository mediaRepo, 
-            IMediaCategoryRepository mediaCategoryRepo, 
-            ICategoryRepository categoryRepository, 
-            IMediaReactionRepository mediaReactionRepository)
+        public MediaService(IMediaRepository mediaRepo,
+            IMediaCategoryRepository mediaCategoryRepo,
+            ICategoryRepository categoryRepository,
+            IMediaReactionRepository mediaReactionRepository,
+            IProducer<string, string> kafkaProducer,
+            IOptions<KafkaOptions> kafkaOptions,
+            IHttpContextAccessor httpContextAccessor)
         {
             _mediaRepository = mediaRepo;
             _mediaCategoryRepo = mediaCategoryRepo;
             _categoryRepository = categoryRepository;
             _mediaReactionRepository = mediaReactionRepository;
+            _kafkaProducer = kafkaProducer;
+            _kafkaTopic = kafkaOptions.Value.VideoTopic;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<IResult> CreateMediasBatchAsync(List<MediaCreateRequest> requests)
@@ -47,7 +61,7 @@ namespace chillhub.Services.Medias
 
             foreach (var req in requests)
             {
-                var mediaId = Guid.NewGuid();
+                var mediaId = Guid.CreateVersion7();
 
                 // Lọc ra các CategoryId hợp lệ
                 var validCategoryIds = req.CategoryIds?
@@ -97,13 +111,49 @@ namespace chillhub.Services.Medias
 
             await _mediaRepository.SaveChangesAsync();
 
+            var successMedias = newMedias.Where(m => m.MediaStatus == MediaStatus.Success).ToList();
+            if (successMedias.Any())
+            {
+                foreach (var media in successMedias)
+                {
+                    var eventPayload = new
+                    {
+                        MediaId = media.Id,
+                        Title = media.Title,
+                        Thumbnail = media.Thumbnail,
+                        AuthorId = media.UserId, // Dùng để tìm kiếm danh sách Subscriber sau này
+                        PublishedAt = media.CreatedAt.ToUnixTimeSeconds()
+                    };
+
+                    var messageJson = JsonSerializer.Serialize(eventPayload);
+
+                    // Dùng AuthorId (UserId) làm Message Key để bảo toàn thứ tự các video của cùng 1 user trên Partition
+                    var kafkaMessage = new Message<string, string>
+                    {
+                        Key = media.UserId.ToString(),
+                        Value = messageJson
+                    };
+
+                    // Bắn Message bất đồng bộ (Fire-and-forget an toàn trong cụm hoặc đưa vào queue nội bộ của client)
+                    _kafkaProducer.Produce(_kafkaTopic, kafkaMessage, deliveryReport =>
+                    {
+                        if (deliveryReport.Error.IsError)
+                        {
+                            // Log lỗi lại nếu không bắn được vào Kafka (Không nên throw làm fail API chính)
+                            Console.WriteLine($"[Kafka Error] Bắn event thất bại cho video {media.Id}: {deliveryReport.Error.Reason}");
+                        }
+                    });
+                }
+            }
+
             return ResponseDto.Create(ResponseCatalog.Created, "media.batch_processed", new
             {
                 Total = newMedias.Count,
-                SuccessCount = newMedias.Count(m => m.MediaStatus == MediaStatus.Success),
+                SuccessCount = successMedias.Count,
                 FailedCount = newMedias.Count(m => m.MediaStatus == MediaStatus.Fail)
             });
         }
+
         public async Task<IResult> UpdateMediasBatchAsync(List<MediaUpdateRequest> requests)
         {
             if (requests == null || !requests.Any())
@@ -236,6 +286,14 @@ namespace chillhub.Services.Medias
             }
 
             return ResponseDto.Create(ResponseCatalog.Success, "reaction.batch_processed");
+        }
+
+        public async Task<IResult> GetReactionCursorAsync(MediaReactionFilterRequest request)
+        {
+            Guid? userId = HttpContextUtil.GetUserId(_httpContextAccessor.HttpContext.User);
+            request.UserId = userId.Value;
+            CursorResponse<MediaReaction> result = await _mediaReactionRepository.GetCursorReactionsAsync(request);
+            return ResponseDto.Create(ResponseCatalog.Success, "media.reaction", result);
         }
     }
 }

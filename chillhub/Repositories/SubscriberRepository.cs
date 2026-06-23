@@ -16,5 +16,13 @@ namespace chillhub.Repositories
             return await _dbSet
                 .FirstOrDefaultAsync(s => s.SubscriberId == subscriberId && s.ChannelId == channelId);
         }
+
+        public async Task<List<Guid>> GetSubscriberIdsByChannelIdAsync(Guid channelId)
+        {
+            return await _dbSet
+                .Where(s => s.ChannelId == channelId && s.IsNotice)
+                .Select(s => s.SubscriberId) // Chỉ lấy mỗi Id cho nhanh
+                .ToListAsync();
+        }
     }
 }

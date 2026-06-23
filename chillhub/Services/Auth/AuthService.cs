@@ -204,8 +204,8 @@ public class AuthService : IAuthService
         var (newJwt, newJti, refreshToken) = await _tokenUtil.GenerateToken(fullInfo.User.Id, 
             fullInfo.User.Username,
             fullInfo.User.Email, 
-            fullInfo.User.Lang,
-            request.RefreshToken);
+            fullInfo.User.Lang
+            );
 
         var newSession = await CreateUserSession(fullInfo);
 

@@ -51,7 +51,7 @@ public sealed class TokenUtil
             lang = LanguageEnum.Vi;
         }
         
-        string jti = Guid.NewGuid().ToString();
+        string jti = Guid.CreateVersion7().ToString();
         string finalRefreshToken = string.IsNullOrEmpty(refreshToken)
             ? GenerateRefreshToken()
             : refreshToken;

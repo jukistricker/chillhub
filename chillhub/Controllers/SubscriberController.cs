@@ -1,88 +1,53 @@
-﻿//using Microsoft.AspNetCore.Mvc;
-//using Microsoft.AspNetCore.Authorization;
-//using System.Security.Claims;
-//using chillhub.Services.Interfaces.Medias;
-//using chillhub.Models.Dtos.Requests;
-//using chillhub.Models.Dtos.Responses;
+﻿using chillhub.Models.Dtos.Requests;
+using chillhub.Models.Dtos.Responses.Shared;
+using chillhub.Services.Interfaces.Medias;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
-//namespace chillhub.Controllers
-//{
-//    [Authorize] // Bắt buộc đăng nhập để sử dụng các API này
-//    [ApiController]
-//    [Route("api/channels/{channelId}/subscribers")]
-//    public class SubscriberController : ControllerBase
-//    {
-//        private readonly ISubscriberService _subscriberService;
+namespace chillhub.Controllers.Medias;
 
-//        public SubscriberController(ISubscriberService subscriberService)
-//        {
-//            _subscriberService = subscriberService;
-//        }
+[ApiController]
+[Route("subscribers")]
+public class SubscriberController : ControllerBase
+{
+    private readonly ISubscriberService _subscriberService;
 
-//        /// <summary>
-//        /// Lấy trạng thái đăng ký của User hiện tại đối với Channel
-//        /// </summary>
-//        [HttpGet("status")]
-//        public async Task<ActionResult<SubscriberResponse>> GetStatus(Guid channelId)
-//        {
-//            var subscriberId = GetCurrentUserId();
+    public SubscriberController(ISubscriberService subscriberService)
+    {
+        _subscriberService = subscriberService;
+    }
 
-//            // Ngăn tự check trạng thái của chính mình (Tùy bối cảnh dự án của bạn)
-//            if (subscriberId == channelId)
-//            {
-//                return BadRequest("You cannot check subscription status on your own channel.");
-//            }
+    [HttpPost("batch-subscribe")]
+    public async Task<IActionResult> BatchSubscribe([FromBody] List<SubscribeBatchRequest> requests)
+    {
+        var result = await _subscriberService.SubscribeBatchAsync(requests);
 
-//            var result = await _subscriberService.GetSubscriberStatusAsync(subscriberId, channelId);
-//            return Ok(result);
-//        }
+        if (!result)
+        {
+            return BadRequest(ResponseDto.Create(ResponseCatalog.BadRequest, "subscriber.batch_subscribe_failed"));
+        }
 
-//        /// <summary>
-//        /// Đăng ký theo dõi hoặc cập nhật trạng thái nhận thông báo (IsNotice)
-//        /// </summary>
-//        [HttpPost]
-//        public async Task<IActionResult> Subscribe(Guid channelId, [FromBody] SubscribeRequest request)
-//        {
-//            var subscriberId = GetCurrentUserId();
+        return Ok(ResponseDto.Create(ResponseCatalog.Success, "subscriber.batch_subscribe_success"));
+    }
 
-//            if (subscriberId == channelId)
-//            {
-//                return BadRequest("You cannot subscribe to your own channel.");
-//            }
+    [HttpPost("batch-unsubscribe")]
+    public async Task<IActionResult> BatchUnsubscribe([FromBody] List<UnsubscribeBatchRequest> requests)
+    {
+        var result = await _subscriberService.UnsubscribeBatchAsync(requests);
 
-//            var success = await _subscriberService.SubscribeAsync(subscriberId, channelId, request.IsNotice);
-//            if (!success) return BadRequest("Failed to process subscription.");
+        if (!result)
+        {
+            return BadRequest(ResponseDto.Create(ResponseCatalog.BadRequest, "subscriber.batch_unsubscribe_failed"));
+        }
 
-//            return Ok(new { message = "Subscribed successfully or notification settings updated." });
-//        }
+        return Ok(ResponseDto.Create(ResponseCatalog.Success, "subscriber.batch_unsubscribe_success"));
+    }
 
-//        /// <summary>
-//        /// Hủy đăng ký theo dõi kênh
-//        /// </summary>
-//        [HttpDelete]
-//        public async Task<IActionResult> Unsubscribe(Guid channelId)
-//        {
-//            var subscriberId = GetCurrentUserId();
+    [Authorize]
+    [HttpGet("status/{channelId}")]
+    public async Task<IResult> GetSubscriberStatus(Guid channelId)
+    {
+        return await _subscriberService.GetSubscriberStatusAsync( channelId);
 
-//            var success = await _subscriberService.UnsubscribeAsync(subscriberId, channelId);
-//            if (!success) return BadRequest("Failed to unsubscribe.");
-
-//            return Ok(new { message = "Unsubscribed successfully." });
-//        }
-
-//        /// <summary>
-//        /// Helper lấy UserId từ JWT Token của người dùng đang đăng nhập
-//        /// </summary>
-//        private Guid GetCurrentUserId()
-//        {
-//            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-//            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-//            {
-//                throw new UnauthorizedAccessException("User context is missing or invalid.");
-//            }
-
-//            return userId;
-//        }
-//    }
-//}
+    }
+}

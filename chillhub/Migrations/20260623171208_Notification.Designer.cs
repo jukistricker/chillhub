@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using chillhub.Contexts;
@@ -11,9 +12,11 @@ using chillhub.Contexts;
 namespace chillhub.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260623171208_Notification")]
+    partial class Notification
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -79,7 +82,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "Login",
                             PermissionGroupId = new Guid("019eed25-b9cb-72a8-bb2e-cde54dc0f0ae"),
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(6967), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 396, DateTimeKind.Unspecified).AddTicks(949), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -89,7 +92,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "Logout",
                             PermissionGroupId = new Guid("019eed25-b9cb-72a8-bb2e-cde54dc0f0ae"),
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(8053), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 396, DateTimeKind.Unspecified).AddTicks(2023), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -99,7 +102,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "View User's Details",
                             PermissionGroupId = new Guid("019eed25-b9cb-74ad-bd0b-dcc44f4d0e63"),
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(8165), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 396, DateTimeKind.Unspecified).AddTicks(2032), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -109,7 +112,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "Add New User",
                             PermissionGroupId = new Guid("019eed25-b9cb-74ad-bd0b-dcc44f4d0e63"),
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(8205), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 396, DateTimeKind.Unspecified).AddTicks(2037), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -119,7 +122,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "Update User's Details",
                             PermissionGroupId = new Guid("019eed25-b9cb-74ad-bd0b-dcc44f4d0e63"),
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(8209), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 396, DateTimeKind.Unspecified).AddTicks(2042), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -129,7 +132,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "Delete User",
                             PermissionGroupId = new Guid("019eed25-b9cb-74ad-bd0b-dcc44f4d0e63"),
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(8224), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 396, DateTimeKind.Unspecified).AddTicks(2053), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -139,7 +142,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "View Users",
                             PermissionGroupId = new Guid("019eed25-b9cb-74ad-bd0b-dcc44f4d0e63"),
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(8229), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 396, DateTimeKind.Unspecified).AddTicks(2058), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -149,7 +152,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "Get Session",
                             PermissionGroupId = new Guid("019eed25-b9cb-74ad-bd0b-dcc44f4d0e63"),
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(8234), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 396, DateTimeKind.Unspecified).AddTicks(2114), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -159,7 +162,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "Save Permission Group",
                             PermissionGroupId = new Guid("019eed25-b9cb-7238-aad7-74e3c7d0aa5d"),
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(8238), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 396, DateTimeKind.Unspecified).AddTicks(2118), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -169,7 +172,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "Search Permission Groups",
                             PermissionGroupId = new Guid("019eed25-b9cb-7238-aad7-74e3c7d0aa5d"),
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(8244), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 396, DateTimeKind.Unspecified).AddTicks(2125), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -179,7 +182,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "Save Role",
                             PermissionGroupId = new Guid("019eed25-b9cb-7238-aad7-74e3c7d0aa5d"),
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(8249), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 396, DateTimeKind.Unspecified).AddTicks(2130), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -189,7 +192,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "Search Roles",
                             PermissionGroupId = new Guid("019eed25-b9cb-7238-aad7-74e3c7d0aa5d"),
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(8253), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 396, DateTimeKind.Unspecified).AddTicks(2134), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -199,7 +202,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "Save Permissions",
                             PermissionGroupId = new Guid("019eed25-b9cb-7238-aad7-74e3c7d0aa5d"),
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(8257), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 396, DateTimeKind.Unspecified).AddTicks(2140), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -209,7 +212,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "Search Permissions",
                             PermissionGroupId = new Guid("019eed25-b9cb-7238-aad7-74e3c7d0aa5d"),
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(8261), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 396, DateTimeKind.Unspecified).AddTicks(2144), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -219,7 +222,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "Assign Roles",
                             PermissionGroupId = new Guid("019eed25-b9cb-7238-aad7-74e3c7d0aa5d"),
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(8266), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 396, DateTimeKind.Unspecified).AddTicks(2149), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -229,7 +232,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "Create Category",
                             PermissionGroupId = new Guid("019eed25-b9cb-7238-aad7-74e3c7d0aa5d"),
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(8270), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 396, DateTimeKind.Unspecified).AddTicks(2153), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -239,7 +242,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "Update Category",
                             PermissionGroupId = new Guid("019eed25-b9cb-7238-aad7-74e3c7d0aa5d"),
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(8274), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 396, DateTimeKind.Unspecified).AddTicks(2157), new TimeSpan(0, 0, 0, 0, 0))
                         });
                 });
 
@@ -298,7 +301,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "Auth",
                             SortOrder = 1,
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(4061), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 395, DateTimeKind.Unspecified).AddTicks(8713), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -308,7 +311,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "User",
                             SortOrder = 2,
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(5468), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 395, DateTimeKind.Unspecified).AddTicks(9956), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -318,7 +321,7 @@ namespace chillhub.Migrations
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "RBAC Management",
                             SortOrder = 3,
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 408, DateTimeKind.Unspecified).AddTicks(5473), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 395, DateTimeKind.Unspecified).AddTicks(9962), new TimeSpan(0, 0, 0, 0, 0))
                         });
                 });
 
@@ -365,7 +368,7 @@ namespace chillhub.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "admin",
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 406, DateTimeKind.Unspecified).AddTicks(8715), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 394, DateTimeKind.Unspecified).AddTicks(3816), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
                         {
@@ -373,7 +376,7 @@ namespace chillhub.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             CreatedBy = new Guid("019eed25-b9cc-7b05-b21b-f4c3f68c9d06"),
                             Name = "user",
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 407, DateTimeKind.Unspecified).AddTicks(3710), new TimeSpan(0, 0, 0, 0, 0))
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 394, DateTimeKind.Unspecified).AddTicks(8672), new TimeSpan(0, 0, 0, 0, 0))
                         });
                 });
 
@@ -589,7 +592,7 @@ namespace chillhub.Migrations
                             IsFirstLogin = false,
                             Lang = 0,
                             Password = "AQAAAAIAACcQAAAAEJL3PEfuwNrQOTsclnmWeXII/9NzpgehrbMF6gOzBfg4BjsiMVqewvfP5/LtaNKj4w==",
-                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 25, 58, 410, DateTimeKind.Unspecified).AddTicks(1332), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 6, 23, 17, 12, 5, 397, DateTimeKind.Unspecified).AddTicks(4635), new TimeSpan(0, 0, 0, 0, 0)),
                             Username = "admin"
                         });
                 });
@@ -938,8 +941,6 @@ namespace chillhub.Migrations
                         .HasColumnName("user_id");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("UserId", "Id");
 
                     b.ToTable("user_notifications");
                 });

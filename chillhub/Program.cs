@@ -1,7 +1,9 @@
 using chillhub.Contexts;
 using chillhub.Entities.Auth;
+using chillhub.Hubs;
 using chillhub.Middlewares;
 using chillhub.Models.Dtos.Responses.Shared;
+using chillhub.Models.ThirdParties;
 using chillhub.Repositories;
 using chillhub.Repositories.Interfaces;
 using chillhub.Services.Auth;
@@ -11,6 +13,7 @@ using chillhub.Services.Interfaces.Rbac;
 using chillhub.Services.Medias;
 using chillhub.Services.Rbac;
 using chillhub.Utils;
+using Confluent.Kafka;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -19,6 +22,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Prometheus;
@@ -160,6 +164,27 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddHttpContextAccessor();
 
+builder.Services.Configure<KafkaOptions>(builder.Configuration.GetSection(KafkaOptions.SectionName));
+
+// 2. Đăng ký Kafka Producer sử dụng IOptions đã được bind ở trên
+builder.Services.AddSingleton<IProducer<string, string>>(sp =>
+{
+    // Lấy object KafkaOptions ra từ DI Container
+    var kafkaOptions = sp.GetRequiredService<IOptions<KafkaOptions>>().Value;
+
+    if (string.IsNullOrEmpty(kafkaOptions.BootstrapServers))
+    {
+        throw new InvalidOperationException("Missing Kafka BootstrapServers in appsettings.json");
+    }
+
+    var producerConfig = new ProducerConfig
+    {
+        BootstrapServers = kafkaOptions.BootstrapServers
+    };
+    
+    return new ProducerBuilder<string, string>(producerConfig).Build();
+});
+
 // Đăng ký Repository 
 builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
@@ -173,6 +198,7 @@ builder.Services.AddScoped<IMediaRepository, MediaRepository>();
 builder.Services.AddScoped<IMediaHistoryRepository, MediaHistoryRepository>();
 builder.Services.AddScoped<IMediaReactionRepository, MediaReactionRepository>();
 builder.Services.AddScoped<ISubscriberRepository, SubscriberRepository>();
+builder.Services.AddScoped<IUserNotificationRepository, UserNotificationRepository>();
 
 
 
@@ -205,11 +231,29 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],    
-        ValidAudience = builder.Configuration["Jwt:Audience"], 
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("Missing JWT Key"))
         )
+    };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            // Bốc token từ Query String do SignalR tự động đính kèm khi kết nối WebSocket
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.Request.Path;
+
+            // Kiểm tra nếu request đang đi vào Endpoint của Hub thông báo
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/notifications"))
+            {
+                // Gán token vào context để hệ thống Authentication của .NET nhận diện như một Header thông thường
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -227,6 +271,7 @@ builder.Services.AddCors(options =>
             .AllowCredentials(); // Quan trọng: Cho phép gửi Cookie/Auth Header
     });
 });
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -271,6 +316,7 @@ if (app.Environment.IsDevelopment())
 
 
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.UseHttpMetrics(); // Theo dõi các yêu cầu HTTP (tùy chọn)
 app.MapMetrics();

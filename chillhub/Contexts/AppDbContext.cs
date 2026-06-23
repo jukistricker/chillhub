@@ -26,6 +26,7 @@ public class AppDbContext : DbContext
     public DbSet<MediaHistory> MediaHistories => Set<MediaHistory>();
     public DbSet<MediaReaction> MediaReactions => Set<MediaReaction>();
     public DbSet<Subscriber> Subscribers => Set<Subscriber>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -52,17 +53,7 @@ public class AppDbContext : DbContext
             }
         }
         DataSeeder.Seed(modelBuilder);
-        try
-        {
-            // Ép EF Core chạy thử cơ chế kiểm tra Model xem có gì bất thường không
-            var model = modelBuilder.Model;
-        }
-        catch (Exception ex)
-        {
-            // Đặt một Breakpoint tại dòng này nếu bạn dùng Visual Studio / VS Code để Debug
-            var ghi_nho_loi = ex.Message;
-            throw;
-        }
+        
     }
 
 }

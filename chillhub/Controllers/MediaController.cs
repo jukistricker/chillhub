@@ -1,5 +1,6 @@
 ﻿using chillhub.Models.Dtos.Requests;
 using chillhub.Services.Interfaces.Medias;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace chillhub.Controllers
@@ -36,8 +37,15 @@ namespace chillhub.Controllers
         [HttpPost("reaction-batch")]
         public async Task<IResult> BatchReaction([FromBody] List<MediaReactionRequest> requests)
         {
-            // Gọi trực tiếp xuống hàm Service đã tối ưu Bulk Extensions của bạn
             return await _mediaService.BatchReactionAsync(requests);
         }
+
+        [HttpGet("reaction")]
+        [Authorize]
+        public async Task<IResult> SearchAsync([FromQuery] MediaReactionFilterRequest request)
+        {
+            return await _mediaService.GetReactionCursorAsync(request);
+        }
+
     }
 }
