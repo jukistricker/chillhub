@@ -32,10 +32,10 @@ public class NotificationController : ControllerBase
     }
 
     [HttpPatch("read-all")]
-    public async Task<IResult> MarkAllAsRead()
+    public async Task<IActionResult> MarkAllAsRead()
     {
         _notificationService.MarkAllAsReadAsync();
-        return (IResult)NoContent();
+        return NoContent();
         
     }
 }

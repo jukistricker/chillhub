@@ -13,6 +13,7 @@ using chillhub.Services.Interfaces.Rbac;
 using chillhub.Services.Medias;
 using chillhub.Services.Rbac;
 using chillhub.Utils;
+using chillhub.Workers;
 using Confluent.Kafka;
 using Hangfire;
 using Hangfire.PostgreSql;
@@ -212,6 +213,8 @@ builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddScoped<IMediaHistoryService, MediaHistoryService>();
 builder.Services.AddScoped<ISubscriberService, SubscriberService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+
+builder.Services.AddHostedService<VideoNotificationWorker>();
 
 
 //Đăng ký các Unstatic Util
