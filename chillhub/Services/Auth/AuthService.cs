@@ -232,4 +232,90 @@ public class AuthService : IAuthService
             ExpiresAt = DateTimeOffset.UtcNow.Add(_sessionTtl)
         };
     }
+
+    public async Task<IResult> UpdateProfileAsync(UpdateProfileRequest dto)
+    {
+        var context = _httpContextAccessor.HttpContext;
+        if (context == null)
+        {
+            return ResponseDto.Create(ResponseCatalog.Internal, "system.http_context_not_found");
+        }
+
+        UserSession? session = HttpContextUtil.GetUserSession(context);
+        if (session == null)
+        {
+            return ResponseDto.Create(ResponseCatalog.Unauthorized, "auth.session_not_found");
+        }
+
+        // Lấy user từ DB qua Id để EF Core track thực thể
+        User? user = await _authRepo.GetByIdAsync(session.UserId);
+        if (user == null)
+        {
+            return ResponseDto.Create(ResponseCatalog.NotFound, "auth.user_not_found");
+        }
+
+        // Cập nhật các thông tin cho phép thay đổi
+        user.FullName = dto.FullName;
+        user.Lang = dto.Lang;
+        user.UpdatedBy = session.UserId;
+
+        // Lưu thay đổi vào Database
+        await _authRepo.SaveChangesAsync();
+
+        // ĐỒNG BỘ CACHE: Cập nhật lại session trong Redis/Cache để có hiệu lực ngay lập tức
+        string? jti = HttpContextUtil.GetJti(context);
+        if (!string.IsNullOrEmpty(jti))
+        {
+            session.Lang = dto.Lang; // Cập nhật ngôn ngữ mới vào session
+            // Tính toán lại thời gian TTL còn lại của session hoặc reset lại _sessionTtl
+            await _sessionRepo.StoreAsync(jti, session, _sessionTtl);
+        }
+
+        UserResponse responseData = UserMapping.ToResponse(user);
+        return ResponseDto.Create(ResponseCatalog.Success, "auth.profile_updated_success", responseData);
+    }
+
+    public async Task<IResult> ChangePasswordAsync(ChangePasswordRequest dto)
+    {
+        var context = _httpContextAccessor.HttpContext;
+        if (context == null)
+        {
+            return ResponseDto.Create(ResponseCatalog.Internal, "system.http_context_not_found");
+        }
+
+        UserSession? session = HttpContextUtil.GetUserSession(context);
+        if (session == null)
+        {
+            return ResponseDto.Create(ResponseCatalog.Unauthorized, "auth.session_not_found");
+        }
+
+        User? user = await _authRepo.GetByIdAsync(session.UserId);
+        if (user == null)
+        {
+            return ResponseDto.Create(ResponseCatalog.NotFound, "auth.user_not_found");
+        }
+
+        // 1. Kiểm tra mật khẩu hiện tại
+        PasswordVerificationResult verificationResult = _passwordHasher.VerifyHashedPassword(
+            user,
+            user.Password,
+            dto.CurrentPassword
+        );
+
+        if (verificationResult == PasswordVerificationResult.Failed)
+        {
+            return ResponseDto.Create(ResponseCatalog.BadRequest, "auth.invalid_current_password");
+        }
+
+        // 2. Mã hóa và cập nhật mật khẩu mới
+        user.Password = _passwordHasher.HashPassword(user, dto.NewPassword);
+        user.UpdatedBy = session.UserId;
+
+        await _authRepo.SaveChangesAsync();
+
+        // 3. (Tùy chọn) Nếu muốn bắt user đăng xuất ở tất cả thiết bị khi đổi mật khẩu, 
+        // bạn có thể gọi: await _sessionRepo.DeleteAsync(HttpContextUtil.GetJti(context));
+
+        return ResponseDto.Create(ResponseCatalog.Success, "auth.change_password_success");
+    }
 }

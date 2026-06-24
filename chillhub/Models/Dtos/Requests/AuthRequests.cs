@@ -37,3 +37,15 @@ public class RefreshTokenRequest
     public string AccessToken { get; set; } = string.Empty;
     public string RefreshToken { get; set; } = string.Empty;
 }
+
+public class UpdateProfileRequest
+{
+    public string FullName { get; set; } = null!;
+    public LanguageEnum Lang { get; set; }
+}
+
+public class ChangePasswordRequest
+{
+    public string CurrentPassword { get; set; } = null!;
+    public string NewPassword { get; set; } = null!;
+}

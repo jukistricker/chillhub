@@ -247,7 +247,8 @@ namespace chillhub.Services.Medias
                             Id = oldReaction?.Id ?? Guid.CreateVersion7(), // Giữ Id cũ nếu là update, sinh mới nếu là insert
                             UserId = req.UserId,
                             MediaId = req.MediaId,
-                            ReactionType = req.ReactionType
+                            ReactionType = req.ReactionType,
+                            CreatedAt = DateTimeOffset.UtcNow
                         });
 
                         if (req.ReactionType == ReactionType.Like) media.LikeCount++;

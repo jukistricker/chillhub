@@ -69,4 +69,16 @@ public class AuthController : ControllerBase
     {
         return await _authService.RefreshTokenAsync(request);
     }
+
+    [HttpPut("profile")]
+    public async Task<IResult> UpdateProfile(UpdateProfileRequest request)
+    {
+        return await _authService.UpdateProfileAsync(request);
+    }
+
+    [HttpPut("password")]
+    public async Task<IResult> ChangePassword(ChangePasswordRequest request)
+    {
+        return await _authService.ChangePasswordAsync(request);
+    }
 }

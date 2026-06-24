@@ -12,4 +12,6 @@ public interface IAuthService
     Task<IResult> GetPermissionAsync();
     Task<IResult> GetPersonalInfo();
     Task<IResult> RefreshTokenAsync(RefreshTokenRequest request);
+    Task<IResult> UpdateProfileAsync(UpdateProfileRequest dto);
+    Task<IResult> ChangePasswordAsync(ChangePasswordRequest dto);
 }

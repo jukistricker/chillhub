@@ -211,6 +211,7 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddScoped<IMediaHistoryService, MediaHistoryService>();
 builder.Services.AddScoped<ISubscriberService, SubscriberService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 
 //Đăng ký các Unstatic Util

@@ -19,7 +19,7 @@ public class NotificationController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IResult> GetNotifications(NotificationFilterRequest request)
+    public async Task<IResult> GetNotifications([FromQuery]NotificationFilterRequest request)
     {
         return await _notificationService.GetUserNotificationsAsync(request);
         
