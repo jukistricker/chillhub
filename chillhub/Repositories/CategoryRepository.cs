@@ -20,8 +20,8 @@ namespace chillhub.Repositories
             if (request.Id.HasValue)
                 query = query.Where(x => x.Id == request.Id);
 
-            if (!string.IsNullOrWhiteSpace(request.Name))
-                query = query.Where(x => x.Name.Contains(request.Name));
+            if (!string.IsNullOrWhiteSpace(request.Search))
+                query = query.Where(x => x.Name.Contains(request.Search));
 
             return await GetByCursorAsync(query, request, u => u.Id);
         }

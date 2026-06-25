@@ -1,4 +1,5 @@
-﻿using chillhub.Models.Dtos.Requests.Search;
+﻿using chillhub.Entities.Media;
+using chillhub.Models.Dtos.Requests.Search;
 using chillhub.Models.Dtos.Responses.Search;
 using chillhub.Repositories.Interfaces;
 using EFCore.BulkExtensions;
@@ -27,6 +28,7 @@ public class Repository<T> : IRepository<T> where T : class
     {
         return await _dbSet.FindAsync(id);
     }
+
 
     public async Task<bool> AnyAsync(Expression<Func<T, bool>> predicate)
     {

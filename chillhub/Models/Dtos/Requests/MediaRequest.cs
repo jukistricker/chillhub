@@ -1,4 +1,5 @@
 ﻿using chillhub.Models.Dtos.Requests.Search;
+using chillhub.Models.Dtos.Responses;
 using chillhub.Models.Enums;
 
 namespace chillhub.Models.Dtos.Requests;
@@ -30,4 +31,15 @@ public class MediaFilterRequest : CursorRequest
     public Guid? CategoryId { get; set; }
     public Guid? UserId { get; set; }
     public MediaType? Type { get; set; }
+}
+
+public class MediaRecommendationDto
+{
+    public Guid Id { get; set; }
+    public string Title { get; set; }
+    public string Description { get; set; }
+    public string Thumbnail { get; set; }
+    public long Duration { get; set; }
+    public MediaType Type { get; set; } // Hoặc kiểu Enum MediaType của bạn
+    public UserDto User { get; set; }
 }

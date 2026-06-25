@@ -1,4 +1,7 @@
-﻿namespace chillhub.Entities.Media
+﻿using chillhub.Entities.Auth;
+using System.Threading.Channels;
+
+namespace chillhub.Entities.Media
 {
     public class Subscriber
     {
@@ -7,5 +10,6 @@
         public Guid ChannelId { get; set; }
         public bool IsNotice { get; set; } = true;
         public DateTimeOffset CreatedAt { get; set; }
+        public virtual User Channel { get; set; } = null!;
     }
 }

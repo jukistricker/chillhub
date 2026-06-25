@@ -24,7 +24,7 @@ public class AuthService : IAuthService
     private readonly IPasswordHasher<User> _passwordHasher;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
-    private readonly TimeSpan _sessionTtl = TimeSpan.FromMinutes(15);
+    private readonly TimeSpan _sessionTtl = TimeSpan.FromMinutes(30);
 
     public AuthService(
          IAuthRepository authRepo,
@@ -60,7 +60,7 @@ public class AuthService : IAuthService
         {
             Id = userId,
             Username = dto.Email,
-            FullName = dto.Email,
+            FullName = GenerateDefaultName(),
             Email = dto.Email,
             Lang = lang,
             CreatedBy = userId,
@@ -255,6 +255,10 @@ public class AuthService : IAuthService
         }
 
         // Cập nhật các thông tin cho phép thay đổi
+        if (dto.AvatarUrl != null)
+        {
+            user.AvatarUrl = dto.AvatarUrl;
+        }
         user.FullName = dto.FullName;
         user.Lang = dto.Lang;
         user.UpdatedBy = session.UserId;
@@ -266,8 +270,7 @@ public class AuthService : IAuthService
         string? jti = HttpContextUtil.GetJti(context);
         if (!string.IsNullOrEmpty(jti))
         {
-            session.Lang = dto.Lang; // Cập nhật ngôn ngữ mới vào session
-            // Tính toán lại thời gian TTL còn lại của session hoặc reset lại _sessionTtl
+            session.Lang = dto.Lang;
             await _sessionRepo.StoreAsync(jti, session, _sessionTtl);
         }
 
@@ -317,5 +320,12 @@ public class AuthService : IAuthService
         // bạn có thể gọi: await _sessionRepo.DeleteAsync(HttpContextUtil.GetJti(context));
 
         return ResponseDto.Create(ResponseCatalog.Success, "auth.change_password_success");
+    }
+
+    private static string GenerateDefaultName()
+    {
+        int randomNumber = Random.Shared.Next(0, 100000000);
+
+        return $"User {randomNumber:D8}";
     }
 }

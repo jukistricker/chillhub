@@ -1,5 +1,7 @@
 ﻿using chillhub.Contexts;
 using chillhub.Entities.Media;
+using chillhub.Models.Dtos.Requests;
+using chillhub.Models.Dtos.Responses.Search;
 using chillhub.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,6 +25,18 @@ namespace chillhub.Repositories
                 .Where(s => s.ChannelId == channelId && s.IsNotice)
                 .Select(s => s.SubscriberId) // Chỉ lấy mỗi Id cho nhanh
                 .ToListAsync();
+        }
+
+        public async Task<CursorResponse<Subscriber>> GetSubscribersAsync(SubscriberFilterRequest request)
+        {
+            IQueryable<Subscriber> query = _dbSet.AsNoTracking();
+            query = query.Include(s => s.Channel);
+            query= query.Where(x=>x.SubscriberId == request.SubscriberId);
+        
+            if (request.ChannelId.HasValue)
+                query = query.Where(x => x.ChannelId == request.ChannelId);
+            
+            return await GetByCursorAsync(query, request, u => u.Id);
         }
     }
 }

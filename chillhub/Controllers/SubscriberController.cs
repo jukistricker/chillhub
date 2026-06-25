@@ -50,4 +50,12 @@ public class SubscriberController : ControllerBase
         return await _subscriberService.GetSubscriberStatusAsync( channelId);
 
     }
+
+    [Authorize]
+    [HttpGet]
+    public async Task<IResult> GetChannelsAsync([FromQuery]SubscriberFilterRequest request)
+    {
+        return await _subscriberService.GetChannelsAsync(request);
+
+    }
 }

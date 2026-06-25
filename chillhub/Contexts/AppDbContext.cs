@@ -27,6 +27,8 @@ public class AppDbContext : DbContext
     public DbSet<MediaReaction> MediaReactions => Set<MediaReaction>();
     public DbSet<Subscriber> Subscribers => Set<Subscriber>();
     public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+    public DbSet<Comment> Comments => Set<Comment>();
+    public DbSet<MovieRating> MovieRatings => Set<MovieRating>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

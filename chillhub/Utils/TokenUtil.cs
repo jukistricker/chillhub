@@ -21,7 +21,7 @@ public sealed class TokenUtil
         _secretKey = config["Jwt:SecretKey"] ?? throw new ArgumentNullException("Jwt SecretKey missing");
         _issuer = config["Jwt:Issuer"] ?? throw new ArgumentNullException("Jwt Issuer missing") ;
         _audience = config["Jwt:Audience"] ?? throw new ArgumentNullException("Jwt Audience missing") ;
-        _expireMinutes = int.Parse(config["Jwt:ExpireMinutes"] ?? "1440"); 
+        _expireMinutes = int.Parse(config["Jwt:ExpireMinutes"] ?? "30"); 
         _handler = new JsonWebTokenHandler(); 
         
         _validationParameters = new TokenValidationParameters

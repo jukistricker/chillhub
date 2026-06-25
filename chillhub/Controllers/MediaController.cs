@@ -34,6 +34,13 @@ namespace chillhub.Controllers
             return await _mediaService.SearchMediasAsync(request);
         }
 
+        [HttpGet("recommend/{mediaId}")]
+        public async Task<IResult> GetRecommentMedia(Guid mediaId)
+        {
+            return await _mediaService.GetRecommendMediasAsync(mediaId);
+        }
+
+
         [HttpPost("reaction-batch")]
         public async Task<IResult> BatchReaction([FromBody] List<MediaReactionRequest> requests)
         {

@@ -40,6 +40,7 @@ public class RefreshTokenRequest
 
 public class UpdateProfileRequest
 {
+    public string? AvatarUrl { get; set; }
     public string FullName { get; set; } = null!;
     public LanguageEnum Lang { get; set; }
 }

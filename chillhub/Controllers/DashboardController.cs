@@ -9,7 +9,6 @@ namespace chillhub.Controllers
 {
     [Route("dashboard")]
     [ApiController]
-    [Authorize]
     public class DashboardController:ControllerBase
     {
         private readonly IDashboardService _dashboardService;

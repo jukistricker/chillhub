@@ -9,5 +9,6 @@ namespace chillhub.Services.Interfaces.Medias
         Task<bool> SubscribeBatchAsync(List<SubscribeBatchRequest> requests);
         Task<bool> UnsubscribeBatchAsync(List<UnsubscribeBatchRequest> requests);
         Task<IResult> GetSubscriberStatusAsync( Guid channelId);
+        Task<IResult> GetChannelsAsync(SubscriberFilterRequest request);
     }
 }

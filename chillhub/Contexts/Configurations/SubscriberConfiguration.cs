@@ -1,6 +1,7 @@
 ﻿using chillhub.Entities.Media;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using static Dapper.SqlMapper;
 
 namespace chillhub.Contexts.Configurations
 {
@@ -27,6 +28,11 @@ namespace chillhub.Contexts.Configurations
             builder.Property(x => x.IsNotice)
                    .HasDefaultValue(true)
                    .IsRequired();
+
+            builder.HasOne(s => s.Channel)
+              .WithMany() 
+              .HasForeignKey(s => s.ChannelId)
+              .OnDelete(DeleteBehavior.Restrict);
 
         }
     }

@@ -50,7 +50,9 @@ public static class DataSeeder
             new() { Id = Guid.Parse("019eed25-b9cd-72ee-a00d-dc1e3f02fae6"), Code = "rbac.search_permissions", Name = "Search Permissions", PermissionGroupId = RbacGroupId , CreatedAt = SeedTime, CreatedBy = AdminUserId},
             new() { Id = Guid.Parse("019eed25-b9cd-7175-a2d2-1b8f0b06791a"), Code = "rbac.assign_role", Name = "Assign Roles", PermissionGroupId = RbacGroupId , CreatedAt = SeedTime, CreatedBy = AdminUserId},
             new() { Id = Guid.Parse("019eed25-b9cd-7007-bb65-1eca5d5baa4b"), Code = "media.create_category", Name = "Create Category", PermissionGroupId = RbacGroupId , CreatedAt = SeedTime, CreatedBy = AdminUserId},
-            new() { Id = Guid.Parse("019eed25-b9cd-731f-bdc6-037a645e66c2"), Code = "media.media.update_category", Name = "Update Category", PermissionGroupId = RbacGroupId , CreatedAt = SeedTime, CreatedBy = AdminUserId}
+            new() { Id = Guid.Parse("019eed25-b9cd-731f-bdc6-037a645e66c2"), Code = "media.update_category", Name = "Update Category", PermissionGroupId = RbacGroupId , CreatedAt = SeedTime, CreatedBy = AdminUserId},
+            new() { Id = Guid.Parse("019efce4-bbe7-72cc-b9f3-148451491a87"), Code = "admin.dashboard", Name = "Admin Dashboard", PermissionGroupId = RbacGroupId , CreatedAt = SeedTime, CreatedBy = AdminUserId}
+
 
 
 

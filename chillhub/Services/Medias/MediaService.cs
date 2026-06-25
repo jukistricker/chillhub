@@ -11,6 +11,7 @@ using chillhub.Utils;
 using Confluent.Kafka;
 using EFCore.BulkExtensions;
 using Microsoft.Extensions.Options;
+using System.Linq.Dynamic.Core;
 using System.Text.Json;
 
 namespace chillhub.Services.Medias
@@ -191,6 +192,12 @@ namespace chillhub.Services.Medias
         {
             CursorResponse<Media> pagedResult = await _mediaRepository.GetMediasAsync(request);
             return ResponseDto.Create(ResponseCatalog.Success, "media.list", MediaMapping.ToResponseList(pagedResult));
+        }
+
+        public async Task<IResult> GetRecommendMediasAsync(Guid currentMediaId)
+        {
+            List<MediaRecommendationDto> medias= await _mediaRepository.GetRecommendedMediasAsync(currentMediaId);
+            return ResponseDto.Create(ResponseCatalog.Success, "media.list",medias);
         }
 
         public async Task<IResult> BatchReactionAsync(List<MediaReactionRequest> requests)

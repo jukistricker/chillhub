@@ -1,7 +1,9 @@
 ﻿using chillhub.Entities.Media;
 using chillhub.Models.Dtos.Requests;
 using chillhub.Models.Dtos.Responses;
+using chillhub.Models.Dtos.Responses.Search;
 using chillhub.Models.Dtos.Responses.Shared;
+using chillhub.Repositories;
 using chillhub.Repositories.Interfaces;
 using chillhub.Services.Interfaces.Medias;
 using chillhub.Utils;
@@ -161,6 +163,16 @@ namespace chillhub.Services.Medias
                 });
            
         }
+
+        public async Task<IResult> GetChannelsAsync(SubscriberFilterRequest request)
+        {
+            Guid? userId = HttpContextUtil.GetUserId(_httpContextAccessor.HttpContext.User);
+            request.SubscriberId = userId.Value;
+            CursorResponse<Subscriber> response = await _subscriberRepository.GetSubscribersAsync(request);
+
+            return ResponseDto.Create(ResponseCatalog.Success, "notification.fetch_success", response);
+        }
+
         private string GetSubscriberKey(Guid channelId) {
             return $"{_subscriberKey}{channelId}";
         }

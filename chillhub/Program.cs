@@ -200,7 +200,8 @@ builder.Services.AddScoped<IMediaHistoryRepository, MediaHistoryRepository>();
 builder.Services.AddScoped<IMediaReactionRepository, MediaReactionRepository>();
 builder.Services.AddScoped<ISubscriberRepository, SubscriberRepository>();
 builder.Services.AddScoped<IUserNotificationRepository, UserNotificationRepository>();
-
+builder.Services.AddScoped<ICommentRepository, CommentRepository>();
+builder.Services.AddScoped<IMovieRatingRepository, MovieRatingRepository>();
 
 
 // Đăng ký Service
@@ -213,6 +214,8 @@ builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddScoped<IMediaHistoryService, MediaHistoryService>();
 builder.Services.AddScoped<ISubscriberService, SubscriberService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<ICommentService, CommentService>();
+builder.Services.AddScoped<IMovieRatingService, MovieRatingService>();
 
 builder.Services.AddHostedService<VideoNotificationWorker>();
 
@@ -279,7 +282,7 @@ builder.Services.AddSignalR();
 
 var app = builder.Build();
 
-app.UsePathBase("/api");
+//app.UsePathBase("/api");
 
 app.UseHttpsRedirection();
 
@@ -288,6 +291,28 @@ app.UseGlobalApiErrorHandling(app.Environment);
 app.UseRouting();
 
 app.UseCors("MultiPlatformPolicy");
+
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        // 1. Kiểm tra nếu request thành công (200 OK)
+        if (context.Response.StatusCode == StatusCodes.Status200OK)
+        {
+            var path = context.Request.Path.Value?.ToLower() ?? string.Empty;
+
+            // 2. CHỮA CHÁY: Loại trừ hoàn toàn các kết nối thuộc SignalR Hub
+            if (!path.StartsWith("/hubs/"))
+            {
+                context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate, private";
+                context.Response.Headers.Pragma = "no-cache";
+            }
+        }
+        return Task.CompletedTask;
+    });
+
+    await next(context);
+});
 
 app.Use(async (context, next) =>
 {
