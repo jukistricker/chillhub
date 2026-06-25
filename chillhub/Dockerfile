@@ -37,11 +37,9 @@ RUN chown -R $APP_UID:$APP_UID /app
 # 5. Chuyển lại user không có đặc quyền để chạy app (Best Practice)
 USER $APP_UID
 
-# Dùng shell để xử lý chuỗi kết nối trực tiếp tại Runtime và chạy file SQL
 ENTRYPOINT ["/bin/bash", "-c", " \
-    export PGCONNECTSTRING=$(echo $ConnectionStrings__DefaultConnection | sed -e 's/Host=/host=/g' -e 's/Port=/port=/g' -e 's/Database=/dbname=/g' -e 's/Username=/user=/g' -e 's/Password=/password=/g'); \
     echo '>>> Đang nạp Store Procedure từ dashboard_procedure.sql...'; \
-    psql -f ./dashboard_procedure.sql && \
+    PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f ./dashboard_procedure.sql && \
     echo '>>> Khởi động ứng dụng .NET...'; \
     dotnet chillhub.dll \
 "]

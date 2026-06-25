@@ -44,30 +44,48 @@ public class VideoNotificationWorker : BackgroundService
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+{
+    using var consumer = new ConsumerBuilder<string, string>(_consumerConfig).Build();
+    consumer.Subscribe(_topic);
+
+    _logger.LogInformation($"[Kafka Consumer] Đang chạy nền lắng nghe tại topic: {_topic}...");
+
+    while (!stoppingToken.IsCancellationRequested)
     {
-        using var consumer = new ConsumerBuilder<string, string>(_consumerConfig).Build();
-        consumer.Subscribe(_topic);
+        ConsumeResult<string, string>? consumeResult = null;
 
-        _logger.LogInformation($"[Kafka Consumer] Đang chạy nền lắng nghe tại topic: {_topic}...");
+        // 1. Chỉ bắt lỗi riêng cho việc đọc tin nhắn từ Kafka Broker
+        try
+        {
+            consumeResult = consumer.Consume(stoppingToken);
+            if (consumeResult == null) continue;
+        }
+        catch (ConsumeException ex)
+        {
+            _logger.LogWarning($"[Kafka Consumer] Broker chưa sẵn sàng hoặc lỗi kết nối ({ex.Error.Reason}). Thử lại sau 5 giây...");
+            await Task.Delay(5000, stoppingToken);
+            continue; // Quay lại đầu vòng lặp để consume lại
+        }
+        catch (OperationCanceledException)
+        {
+            break;
+        }
 
-        while (!stoppingToken.IsCancellationRequested)
+        // 2. VÒNG LẶP RETRY: Đảm bảo xử lý THÀNH CÔNG tin nhắn hiện tại trước khi đi tiếp
+        bool isProcessedSuccessfully = false;
+
+        while (!isProcessedSuccessfully && !stoppingToken.IsCancellationRequested)
         {
             try
             {
-                var consumeResult = consumer.Consume(stoppingToken);
-                if (consumeResult == null) continue;
-
                 var authorIdStr = consumeResult.Message.Key;
                 var eventDataJson = consumeResult.Message.Value;
 
                 using (var scope = _serviceProvider.CreateScope())
                 {
                     var subscriberRepo = scope.ServiceProvider.GetRequiredService<ISubscriberRepository>();
-
-                    // Lấy trực tiếp AppDbContext ra để thực hiện Bulk hoạt động ở tầng thấp
                     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-                    // Parse JSON payload từ Kafka
                     using var document = JsonDocument.Parse(eventDataJson);
                     var root = document.RootElement;
 
@@ -98,10 +116,7 @@ public class VideoNotificationWorker : BackgroundService
                         await dbContext.BulkInsertAsync(userNotifications, cancellationToken: stoppingToken);
                         _logger.LogInformation($"[Database Bulk] Đã nạp thẳng thành công {userNotifications.Count} dòng thông báo vào Postgres.");
 
-                        // Đảy realtime qua signalR hub
                         var signalRHub = scope.ServiceProvider.GetRequiredService<IHubContext<NotificationHub>>();
-
-                        // Chuyển mảng Guid thành mảng chuỗi string theo đúng chuẩn nhận diện của Users()
                         var subscriberUserIdsStr = subscriberIds.Select(id => id.ToString()).ToList();
 
                         await signalRHub.Clients.Users(subscriberUserIdsStr).SendAsync(
@@ -120,20 +135,19 @@ public class VideoNotificationWorker : BackgroundService
                     }
                 }
 
-                // Xác nhận hoàn thành để dịch chuyển dấu Offset sang tin nhắn tiếp theo
+                // Xử lý hoàn tất mọi thứ tốt đẹp -> Đánh dấu hoàn thành để thoát vòng lặp Retry
                 consumer.Commit(consumeResult);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
+                isProcessedSuccessfully = true; 
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[Kafka Consumer] Lỗi xảy ra trong quá trình xử lý thông báo sự kiện.");
+                // Nếu sập DB hoặc lỗi logic, log lỗi và giữ nguyên con trỏ xử lý ở tin nhắn này
+                _logger.LogError(ex, $"[Kafka Retry] Lỗi xử lý nội dung tin nhắn (Offset: {consumeResult.Offset}). Sẽ thử lại sau 5 giây...");
                 await Task.Delay(5000, stoppingToken);
             }
         }
-
-        consumer.Close();
     }
+
+    consumer.Close();
+}
 }
