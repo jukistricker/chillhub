@@ -35,8 +35,10 @@ namespace chillhub.Repositories
             var query = GetQueryable().AsNoTracking();
 
             query = query.Where(x => x.EntityId == request.EntityId);
+            Guid? filterReferenceId = (request.ReferenceCommentId == Guid.Empty) ? null : request.ReferenceCommentId;
 
-            query = query.Where(x => x.ReferenceCommentId == request.ReferenceCommentId);
+            query = query.Where(x => x.ReferenceCommentId == filterReferenceId);
+
 
             query = query.Include(x => x.User);
 
