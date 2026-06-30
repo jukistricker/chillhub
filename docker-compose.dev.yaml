@@ -119,7 +119,7 @@
       ConnectionStrings__DefaultConnection: Host=${DB_HOST};Port=${DB_PORT};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASS}
       Redis__ConnectionString: ${REDIS_HOST}:${REDIS_PORT}
       Kafka__BootstrapServers: kafka:29092
-      ASPNETCORE_URLS: "https://+:7226;http://+:5217"
+      ASPNETCORE_URLS: http://+:5217;https://+:7226
       ASPNETCORE_Kestrel__Certificates__Default__Path: /https/aspnetapp.pfx
       ASPNETCORE_Kestrel__Certificates__Default__Password: "password"
     x-develop:
@@ -138,8 +138,40 @@
     networks:
       - chillhub-net
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: chillhub-prometheus
+    restart: always
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    networks:
+      - chillhub-net
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: chillhub-grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - chillhub-net
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+
 networks:
   chillhub-net:
 
 volumes:
   certs-data:
+  prometheus-data:
+  grafana-data:

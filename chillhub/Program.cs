@@ -6,6 +6,7 @@ using chillhub.Models.Dtos.Responses.Shared;
 using chillhub.Models.ThirdParties;
 using chillhub.Repositories;
 using chillhub.Repositories.Interfaces;
+using chillhub.Services;
 using chillhub.Services.Auth;
 using chillhub.Services.Interfaces.Auth;
 using chillhub.Services.Interfaces.Medias;
@@ -217,6 +218,8 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
 builder.Services.AddScoped<IMovieRatingService, MovieRatingService>();
 
+
+builder.Services.AddScoped<ICacheService, RedisCacheService>();
 builder.Services.AddHostedService<VideoNotificationWorker>();
 
 
