@@ -6,6 +6,8 @@ namespace chillhub.Models.Dtos.Requests;
 
 public class SignUpDto
 {
+    [Required(ErrorMessage = "auth.username_required")]
+    public string Username { get; set; }
     [Required(ErrorMessage = "auth.email_required")]
     [EmailAddress(ErrorMessage = "auth.invalid_email_format")]
     public string Email { get; set; } = null!;

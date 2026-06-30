@@ -278,7 +278,9 @@ builder.Services.AddCors(options =>
             .AllowCredentials(); // Quan trọng: Cho phép gửi Cookie/Auth Header
     });
 });
-builder.Services.AddSignalR();
+
+builder.Services.AddSignalR()
+    .AddMessagePackProtocol();
 
 var app = builder.Build();
 

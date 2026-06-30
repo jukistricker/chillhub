@@ -27,7 +27,6 @@
       - "5432:5432"
     networks:
       - chillhub-net
-    # Thêm healthcheck để đảm bảo DB thực sự sẵn sàng nhận kết nối trước khi API chạy psql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -49,7 +48,7 @@
     container_name: kafka-local
     ports:
       - "59092:9092"
-    networks:                  # <--- SỬA: Cho Kafka vào chung mạng
+    networks:                  
       - chillhub-net
     environment:
       KAFKA_NODE_ID: 1
@@ -67,7 +66,26 @@
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
       KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
       CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+      
+  kafka-init-topics:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-init-topics
+    depends_on:
+      kafka:
+        condition: service_started
+    networks:
+      - chillhub-net
+    entrypoint: [ "/bin/sh", "-c" ]
+    command: |
+      "
+      echo 'Waiting for Kafka to be ready...'
+      /usr/bin/kafka-topics --bootstrap-server kafka:29092 --list
 
+      echo 'Creating Kafka topics...'
+      /usr/bin/kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic video-events --replication-factor 1 --partitions 1
+
+      echo 'All topics created successfully!'
+      "
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
@@ -89,9 +107,12 @@
       cert-gen:
         condition: service_completed_successfully
       postgres:
-        condition: service_healthy 
+        condition: service_healthy
       redis:
         condition: service_started
+      kafka:
+        condition: service_started
+
     env_file:
       - .env
     environment:

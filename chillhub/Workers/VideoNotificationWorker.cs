@@ -149,13 +149,23 @@ public class VideoNotificationWorker : BackgroundService
             await dbContext.BulkInsertAsync(userNotifications, cancellationToken: ct);
 
             var subscriberUserIdsStr = subscriberIds.Select(id => id.ToString()).ToList();
-            await signalRHub.Clients.Users(subscriberUserIdsStr).SendAsync("ReceiveNotification", new
+            
+            int batchSize = 500; 
+            for (int i = 0; i < subscriberIds.Count; i += batchSize)
             {
-                mediaId,
-                message = notificationTitle,
-                thumbnail,
-                createdAt = DateTimeOffset.UtcNow
-            }, cancellationToken: ct);
+                var batchIds = subscriberIds.Skip(i).Take(batchSize).Select(id => id.ToString()).ToList();
+                
+                await signalRHub.Clients.Users(batchIds).SendAsync("ReceiveNotification", new
+                {
+                    mediaId,
+                    message = notificationTitle,
+                    thumbnail,
+                    createdAt = DateTimeOffset.UtcNow
+                }, cancellationToken: ct);
+
+                // Nghỉ 10-20ms giữa các batch để Thread Pool của laptop kịp giải phóng tài nguyên
+                await Task.Delay(15, ct); 
+            }
 
             _logger.LogInformation($"[Xử lý] Đã gửi thông báo cho {subscriberIds.Count} người dùng.");
         }
