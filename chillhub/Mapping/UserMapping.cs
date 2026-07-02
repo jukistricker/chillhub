@@ -15,7 +15,7 @@ public static class UserMapping
             Id = user.Id,
             CreatedAt = user.CreatedAt,
             CreatedBy = user.CreatedBy,
-            UpdatedAt = user.UpdatedAt,
+            UpdatedAt = user.UpdatedAt.Value,
             UpdatedBy = user.UpdatedBy,
 
             Username = user.Username,
@@ -34,6 +34,7 @@ public static class UserMapping
 
         };
     }
+
 
     public static CursorResponse<UserResponse> ToCursorResponse(CursorResponse<User> source)
     {

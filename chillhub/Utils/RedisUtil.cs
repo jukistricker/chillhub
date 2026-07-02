@@ -100,8 +100,6 @@ public static class RedisUtil
     public static async Task<bool> FieldExistsAsync(IDatabase db, string key, string field)
         => await db.HashExistsAsync(key, field);
 
-    #region Private Helpers (Rút gọn)
-
     private static RedisValue SerializeToRedisValue(object? obj)
     {
         if (obj == null) return RedisValue.Null;
@@ -130,5 +128,31 @@ public static class RedisUtil
         }
     }
 
-    #endregion
+    public static async Task AddToSetAsync(IDatabase db, string key, string value, TimeSpan? expiry = null)
+    {
+        await db.SetAddAsync(key, value);
+        if (expiry.HasValue) await db.KeyExpireAsync(key, expiry.Value);
+    }
+
+    public static async Task RemoveFromSetAsync(IDatabase db, string key, string value)
+    {
+        await db.SetRemoveAsync(key, value);
+    }
+
+    public static async Task<bool> SetContainsAsync(IDatabase db, string key, string value)
+    {
+        return await db.SetContainsAsync(key, value);
+    }
+
+    public static async Task<long> SetCountAsync(IDatabase db, string key)
+    {
+        return await db.SetLengthAsync(key);
+    }
+
+    public static async Task<string[]> GetSetMembersAsync(IDatabase db, string key)
+    {
+        var values = await db.SetMembersAsync(key);
+        return values.Select(v => v.ToString()).ToArray();
+    }
+
 }

@@ -1,6 +1,8 @@
-﻿using chillhub.Models.Dtos.Requests;
+﻿using chillhub.Attributes;
+using chillhub.Models.Dtos.Requests;
 using chillhub.Models.Dtos.Requests.Search;
-using chillhub.Services.Interfaces;
+using chillhub.Services.Interfaces.Medias;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace chillhub.Controllers
@@ -17,6 +19,7 @@ namespace chillhub.Controllers
         }
 
         [HttpGet]
+        [RequiredPermission("admin.dashboard")]
         public async Task<IResult> GetDashboardsAsync([FromQuery] CursorRequest request)
         {
             return await _dashboardService.GetDashboardsAsync(request);

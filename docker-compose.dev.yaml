@@ -21,12 +21,17 @@
       - .env
     environment:
       POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
     ports:
       - "5432:5432"
     networks:
       - chillhub-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7
@@ -38,6 +43,60 @@
       - chillhub-net
     command: ["redis-server", "--bind", "0.0.0.0", "--protected-mode", "no"]
 
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-local
+    ports:
+      - "59092:9092"
+    networks:                  
+      - chillhub-net
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092,PLAINTEXT_HOST://127.0.0.1:59092'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
+      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:9092'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+      
+  kafka-init-topics:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-init-topics
+    depends_on:
+      kafka:
+        condition: service_started
+    networks:
+      - chillhub-net
+    entrypoint: [ "/bin/sh", "-c" ]
+    command: |
+      "
+      echo 'Waiting for Kafka to be ready...'
+      /usr/bin/kafka-topics --bootstrap-server kafka:29092 --list
+
+      echo 'Creating Kafka topics...'
+      /usr/bin/kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic video-events --replication-factor 1 --partitions 1
+
+      echo 'All topics created successfully!'
+      "
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "56080:8080"
+    networks:                  
+      - chillhub-net
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+
   api:
     build:
       context: .
@@ -46,17 +105,21 @@
     restart: always
     depends_on:
       cert-gen:
-        condition: service_completed_successfully # Đợi tạo cert xong mới chạy API
+        condition: service_completed_successfully
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
         condition: service_started
+      kafka:
+        condition: service_started
+
     env_file:
       - .env
     environment:
       ConnectionStrings__DefaultConnection: Host=${DB_HOST};Port=${DB_PORT};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASS}
       Redis__ConnectionString: ${REDIS_HOST}:${REDIS_PORT}
-      ASPNETCORE_URLS: "https://+;http://+"
+      Kafka__BootstrapServers: kafka:29092
+      ASPNETCORE_URLS: http://+:5217;https://+:7226
       ASPNETCORE_Kestrel__Certificates__Default__Path: /https/aspnetapp.pfx
       ASPNETCORE_Kestrel__Certificates__Default__Password: "password"
     x-develop:
@@ -68,15 +131,47 @@
             - bin/
             - obj/
     ports:
-      - "5217:5217" # Map cổng HTTP
-      - "7226:7226" # Map cổng HTTPS
+      - "5217:5217" 
+      - "7226:7226" 
     volumes:
-      - certs-data:/https:ro # Mount cert vào API (chế độ chỉ đọc)
+      - certs-data:/https:ro 
     networks:
       - chillhub-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: chillhub-prometheus
+    restart: always
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    networks:
+      - chillhub-net
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: chillhub-grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - chillhub-net
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
 
 networks:
   chillhub-net:
 
 volumes:
-  certs-data: # Volume lưu trữ cert dùng chung
+  certs-data:
+  prometheus-data:
+  grafana-data:

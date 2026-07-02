@@ -2,8 +2,8 @@
 {
     public enum MediaType
     {
-        Movie,
-        Video,
-        Reel
+        Movie=1,
+        Video=2,
+        Reel=3
     }
 }

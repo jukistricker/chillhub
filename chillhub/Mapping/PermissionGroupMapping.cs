@@ -15,7 +15,7 @@ public static class PermissionGroupMapping
             Id = permissionGroup.Id,
             CreatedAt = permissionGroup.CreatedAt,
             CreatedBy = permissionGroup.CreatedBy,
-            UpdatedAt = permissionGroup.UpdatedAt,
+            UpdatedAt = permissionGroup.UpdatedAt.Value,
             UpdatedBy = permissionGroup.UpdatedBy,
             
             Code= permissionGroup.Code,

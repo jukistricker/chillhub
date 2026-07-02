@@ -7,4 +7,5 @@ namespace chillhub.Repositories.Interfaces;
 public interface ICategoryRepository : IRepository<Category>
 {
     Task<CursorResponse<Category>> GetCategoriesAsync(CategoryFilterRequest request);
+    Task<List<Guid>> GetExistingIdsAsync(List<Guid> categoryIds);
 }

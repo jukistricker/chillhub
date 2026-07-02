@@ -4,6 +4,7 @@ using chillhub.Entities.Media;
 using chillhub.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace chillhub.Contexts;
 
@@ -21,7 +22,20 @@ public class AppDbContext : DbContext
     public DbSet<PermissionGroup> PermissionGroups => Set<PermissionGroup>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Media> Medias => Set<Media>();
+    public DbSet<MediaCategory> MediaCategories  => Set<MediaCategory>();
+    public DbSet<MediaHistory> MediaHistories => Set<MediaHistory>();
+    public DbSet<MediaReaction> MediaReactions => Set<MediaReaction>();
+    public DbSet<Subscriber> Subscribers => Set<Subscriber>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+    public DbSet<Comment> Comments => Set<Comment>();
+    public DbSet<MovieRating> MovieRatings => Set<MovieRating>();
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        base.OnConfiguring(optionsBuilder);
+
+        optionsBuilder.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
+    }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -41,6 +55,7 @@ public class AppDbContext : DbContext
             }
         }
         DataSeeder.Seed(modelBuilder);
+        
     }
 
 }

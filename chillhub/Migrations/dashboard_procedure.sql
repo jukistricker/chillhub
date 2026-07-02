@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE chillhub_db.refresh_dashboard_snapshot()
+CREATE OR REPLACE PROCEDURE refresh_dashboard_snapshot()
 LANGUAGE plpgsql
 AS $$
 DECLARE

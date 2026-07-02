@@ -1,8 +1,9 @@
-﻿using System.Security.Claims;
-using System.Text;
-using chillhub.Models.Enums;
+﻿using chillhub.Models.Enums;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace chillhub.Utils;
 
@@ -20,7 +21,7 @@ public sealed class TokenUtil
         _secretKey = config["Jwt:SecretKey"] ?? throw new ArgumentNullException("Jwt SecretKey missing");
         _issuer = config["Jwt:Issuer"] ?? throw new ArgumentNullException("Jwt Issuer missing") ;
         _audience = config["Jwt:Audience"] ?? throw new ArgumentNullException("Jwt Audience missing") ;
-        _expireMinutes = int.Parse(config["Jwt:ExpireMinutes"] ?? "1440"); 
+        _expireMinutes = int.Parse(config["Jwt:ExpireMinutes"] ?? "30"); 
         _handler = new JsonWebTokenHandler(); 
         
         _validationParameters = new TokenValidationParameters
@@ -36,7 +37,11 @@ public sealed class TokenUtil
         };
     }
 
-    public Task<(string token, string jti)> GenerateToken(Guid userId, string username , LanguageEnum lang)
+    public Task<(string token, string jti, string refreshToken)> GenerateToken(Guid userId, 
+        string username , 
+        string email, 
+        LanguageEnum lang,
+        string? refreshToken = null)
     {
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
@@ -46,14 +51,19 @@ public sealed class TokenUtil
             lang = LanguageEnum.Vi;
         }
         
-        string jti = Guid.NewGuid().ToString();
+        string jti = Guid.CreateVersion7().ToString();
+        string finalRefreshToken = string.IsNullOrEmpty(refreshToken)
+            ? GenerateRefreshToken()
+            : refreshToken;
 
         var claims = new Dictionary<string, object>
         {
             [JwtRegisteredClaimNames.Sub] = userId.ToString(),      // UserId
             [JwtRegisteredClaimNames.Jti] = jti,
             [JwtRegisteredClaimNames.UniqueName] = username,        // Username
-            ["lang"] = (int)lang                                  // Ngôn ngữ ưu tiên
+            [JwtRegisteredClaimNames.Email] = email,
+            ["lang"] = (int)lang,                                  // Ngôn ngữ ưu tiên
+            ["refresh_token"] = finalRefreshToken
         };
 
         var descriptor = new SecurityTokenDescriptor
@@ -61,12 +71,12 @@ public sealed class TokenUtil
             Issuer = _issuer,
             Audience = _audience,
             Claims = claims,
-            Expires = DateTime.UtcNow.AddMinutes(_expireMinutes),
+            Expires = DateTimeOffset.UtcNow.AddMinutes(_expireMinutes).UtcDateTime,
             SigningCredentials = credentials
         };
         
         string token= _handler.CreateToken(descriptor);
-        return Task.FromResult((token, jti));
+        return Task.FromResult((token, jti, finalRefreshToken));
     }
 
     public string? GetJti(string token)
@@ -90,6 +100,37 @@ public sealed class TokenUtil
             Console.WriteLine($"Token Invalid: {result.Exception?.Message}");
             return null;
         }
+
+        return new ClaimsPrincipal(result.ClaimsIdentity);
+    }
+
+    public string GenerateRefreshToken()
+    {
+        var randomNumber = new byte[64];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(randomNumber);
+        return Convert.ToBase64String(randomNumber);
+    }
+
+    public ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
+    {
+        var tokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = _issuer,   
+            ValidAudience = _audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey)),
+
+            ValidateLifetime = false // CHỈ TẮT check hết hạn
+        };
+
+        var tokenHandler = new JsonWebTokenHandler();
+        var result = tokenHandler.ValidateToken(token, tokenValidationParameters);
+
+        // Nếu chữ ký sai, hoặc token giả mạo -> trả về null ngay lập tức
+        if (!result.IsValid) return null;
 
         return new ClaimsPrincipal(result.ClaimsIdentity);
     }

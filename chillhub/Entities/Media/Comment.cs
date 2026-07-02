@@ -1,10 +1,13 @@
-﻿namespace chillhub.Entities.Media;
+﻿using chillhub.Entities.Auth;
+
+namespace chillhub.Entities.Media;
 
 public class Comment: BaseEntity
 {
     public string? Description { get; set; }
     public Guid UserId { get; set; }
-    public long LikeCount { get; set; }
-    public long DislikeCount { get; set; }
-    public Guid ReferenceCommentId { get; set; }
+    public Guid EntityId { get; set; }
+    public Guid? ReferenceCommentId { get; set; }
+    public bool HasChildren { get; set; } = false;
+    public virtual User User { get; set; } = null!;
 }

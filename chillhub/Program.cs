@@ -1,25 +1,36 @@
 using chillhub.Contexts;
 using chillhub.Entities.Auth;
+using chillhub.Hubs;
 using chillhub.Middlewares;
 using chillhub.Models.Dtos.Responses.Shared;
+using chillhub.Models.ThirdParties;
 using chillhub.Repositories;
 using chillhub.Repositories.Interfaces;
 using chillhub.Services;
 using chillhub.Services.Auth;
-using chillhub.Services.Interfaces;
 using chillhub.Services.Interfaces.Auth;
+using chillhub.Services.Interfaces.Medias;
 using chillhub.Services.Interfaces.Rbac;
+using chillhub.Services.Medias;
 using chillhub.Services.Rbac;
 using chillhub.Utils;
+using chillhub.Workers;
+using Confluent.Kafka;
 using Hangfire;
 using Hangfire.PostgreSql;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Prometheus;
 using StackExchange.Redis;
+using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -75,6 +86,50 @@ builder.Services.AddHangfire(config =>
 
 builder.Services.AddHangfireServer();
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Policy 1: Dành cho API thông thường - Phân tách theo từng Token
+    options.AddPolicy("GeneralApiPolicy", context =>
+    {
+        // Lấy token từ Header làm chìa khóa định danh (nếu không có thì dùng IP)
+        string partitionKey = context.Request.Headers.Authorization.ToString();
+        if (string.IsNullOrEmpty(partitionKey))
+        {
+            partitionKey = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        }
+
+        // Trả về bộ đếm riêng cho THIẾT BỊ/TOKEN này
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: partitionKey,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10, // Thiết bị này được 600 requests/phút cho API thông thường
+                Window = TimeSpan.FromSeconds(1)
+            });
+    });
+
+    // Policy 2: Dành cho API nhạy cảm - Phân tách theo từng Token
+    options.AddPolicy("StrictApiPolicy", context =>
+    {
+        string partitionKey = context.Request.Headers.Authorization.ToString();
+        if (string.IsNullOrEmpty(partitionKey))
+        {
+            partitionKey = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        }
+
+        // Trả về bộ đếm riêng cho THIẾT BỊ/TOKEN này
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: partitionKey,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5, // Thiết bị này chỉ được 5 requests/phút cho API nhạy cảm
+                Window = TimeSpan.FromMinutes(1)
+            });
+    });
+});
+
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -111,6 +166,27 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddHttpContextAccessor();
 
+builder.Services.Configure<KafkaOptions>(builder.Configuration.GetSection(KafkaOptions.SectionName));
+
+// 2. Đăng ký Kafka Producer sử dụng IOptions đã được bind ở trên
+builder.Services.AddSingleton<IProducer<string, string>>(sp =>
+{
+    // Lấy object KafkaOptions ra từ DI Container
+    var kafkaOptions = sp.GetRequiredService<IOptions<KafkaOptions>>().Value;
+
+    if (string.IsNullOrEmpty(kafkaOptions.BootstrapServers))
+    {
+        throw new InvalidOperationException("Missing Kafka BootstrapServers in appsettings.json");
+    }
+
+    var producerConfig = new ProducerConfig
+    {
+        BootstrapServers = kafkaOptions.BootstrapServers
+    };
+    
+    return new ProducerBuilder<string, string>(producerConfig).Build();
+});
+
 // Đăng ký Repository 
 builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
@@ -121,7 +197,12 @@ builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IMediaCategoryRepository, MediaCategoryRepository>();
 builder.Services.AddScoped<IMediaRepository, MediaRepository>();
-
+builder.Services.AddScoped<IMediaHistoryRepository, MediaHistoryRepository>();
+builder.Services.AddScoped<IMediaReactionRepository, MediaReactionRepository>();
+builder.Services.AddScoped<ISubscriberRepository, SubscriberRepository>();
+builder.Services.AddScoped<IUserNotificationRepository, UserNotificationRepository>();
+builder.Services.AddScoped<ICommentRepository, CommentRepository>();
+builder.Services.AddScoped<IMovieRatingRepository, MovieRatingRepository>();
 
 
 // Đăng ký Service
@@ -131,11 +212,60 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IRbacService, RbacService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
+builder.Services.AddScoped<IMediaHistoryService, MediaHistoryService>();
+builder.Services.AddScoped<ISubscriberService, SubscriberService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<ICommentService, CommentService>();
+builder.Services.AddScoped<IMovieRatingService, MovieRatingService>();
+
+
+builder.Services.AddScoped<ICacheService, RedisCacheService>();
+builder.Services.AddHostedService<VideoNotificationWorker>();
 
 
 //Đăng ký các Unstatic Util
 builder.Services.AddSingleton<TokenUtil>();
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("Missing JWT Key"))
+        )
+    };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            // Bốc token từ Query String do SignalR tự động đính kèm khi kết nối WebSocket
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.Request.Path;
+
+            // Kiểm tra nếu request đang đi vào Endpoint của Hub thông báo
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/notifications"))
+            {
+                // Gán token vào context để hệ thống Authentication của .NET nhận diện như một Header thông thường
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
+});
 
 builder.Services.AddAuthorization();
 
@@ -152,11 +282,42 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddSignalR()
+    .AddMessagePackProtocol();
+
 var app = builder.Build();
+
+//app.UsePathBase("/api");
+
+app.UseHttpsRedirection();
+
+app.UseGlobalApiErrorHandling(app.Environment);
 
 app.UseRouting();
 
 app.UseCors("MultiPlatformPolicy");
+
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        // 1. Kiểm tra nếu request thành công (200 OK)
+        if (context.Response.StatusCode == StatusCodes.Status200OK)
+        {
+            var path = context.Request.Path.Value?.ToLower() ?? string.Empty;
+
+            // 2. CHỮA CHÁY: Loại trừ hoàn toàn các kết nối thuộc SignalR Hub
+            if (!path.StartsWith("/hubs/"))
+            {
+                context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate, private";
+                context.Response.Headers.Pragma = "no-cache";
+            }
+        }
+        return Task.CompletedTask;
+    });
+
+    await next(context);
+});
 
 app.Use(async (context, next) =>
 {
@@ -172,6 +333,11 @@ app.Use(async (context, next) =>
     await next();
 });
 
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseRateLimiter();
+app.UseMiddleware<RolePermissionMiddleware>();
+
 var accessor = app.Services.GetRequiredService<IHttpContextAccessor>();
 
 // Configure the HTTP request pipeline.
@@ -183,28 +349,22 @@ if (app.Environment.IsDevelopment())
 }
 
 
-RecurringJob.AddOrUpdate<IHangfireService>(
-    "dashboard-refresh",
-    x => x.RefreshDashboard(),
-    Cron.Daily(1, 0)
-);
-
-app.UsePathBase("/api");
-
-app.UseHttpsRedirection();
-
-app.UseGlobalApiErrorHandling(app.Environment);
-
-app.UseRouting();
-
-app.UseAuthentication(); 
-app.UseAuthorization();
-
-app.UseMiddleware<RolePermissionMiddleware>();
-
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.UseHttpMetrics(); // Theo dõi các yêu cầu HTTP (tùy chọn)
 app.MapMetrics();
+
+using (var scope = app.Services.CreateScope())
+{
+    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+
+    // Sử dụng service-based API thay vì static RecurringJob
+    recurringJobManager.AddOrUpdate<IHangfireService>(
+        "dashboard-refresh",
+        x => x.RefreshDashboard(),
+        Cron.Daily(1, 0)
+    );
+}
 
 app.Run();

@@ -9,6 +9,6 @@
         public int PermissionsCount { get; set; }
         public int PermissionGroupsCount { get; set; }
         public int MediasCount { get; set; }
-        public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+        public DateTimeOffset CreatedAt { get; set; }
     }
 }
